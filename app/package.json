@@ -2,10 +2,12 @@
   "name": "wander",
   "version": "1.1.0",
   "private": true,
-  "scripts": { "build": "node build.js" },
+  "scripts": {
+    "build": "node build.js"
+  },
   "dependencies": {
     "@fontsource/pixelify-sans": "5.3.0",
-    "@fontsource/press-start-2p": "5.3.0",
+    "@fontsource/tiny5": "5.3.0",
     "leaflet": "1.9.4"
   }
 }

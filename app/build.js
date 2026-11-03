@@ -7,9 +7,9 @@ fs.mkdirSync(out, { recursive: true });
 const nm = 'node_modules';
 const css = fs.readFileSync(path.join(nm, 'leaflet', 'dist', 'leaflet.css'), 'utf8');
 const js = fs.readFileSync(path.join(nm, 'leaflet', 'dist', 'leaflet.js'), 'utf8').replace(/\/\/# sourceMappingURL=.*/g, '');
-const face = (family, file) => `@font-face{font-family:"${family}";font-weight:400;font-style:normal;font-display:swap;src:url(data:font/woff2;base64,${fs.readFileSync(file).toString('base64')}) format("woff2")}`;
+const face = (family, file, extra = '') => `@font-face{font-family:"${family}";${extra}font-weight:400;font-style:normal;font-display:swap;src:url(data:font/woff2;base64,${fs.readFileSync(file).toString('base64')}) format("woff2")}`;
 const fonts = [
-  face('Press Start 2P', path.join(nm, '@fontsource', 'press-start-2p', 'files', 'press-start-2p-latin-400-normal.woff2')),
+  face('Tiny5', path.join(nm, '@fontsource', 'tiny5', 'files', 'tiny5-latin-400-normal.woff2'), 'size-adjust:140%;'),
   face('Pixelify Sans', path.join(nm, '@fontsource', 'pixelify-sans', 'files', 'pixelify-sans-latin-400-normal.woff2'))
 ].join('\n');
 const html = fs.readFileSync('index.src.html', 'utf8')
