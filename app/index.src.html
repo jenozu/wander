@@ -68,7 +68,7 @@ svg.i{display:block;flex:none;color:inherit;image-rendering:pixelated}
 .paper-tiles{filter:saturate(.3) contrast(.9) brightness(1.08);filter:url(#pastel)}
 .leaflet-container{background:var(--blue);font-family:var(--body)}
 .leaflet-control-attribution{font:12px var(--body)!important;background:rgba(255,255,255,.85)!important;color:var(--ink)}
-#map .leaflet-top .leaflet-control{margin-top:calc(76px + env(safe-area-inset-top));margin-left:16px}
+#map .leaflet-top .leaflet-control,#bmap .leaflet-top .leaflet-control{margin-top:calc(76px + env(safe-area-inset-top));margin-left:16px}
 .pin{width:34px;height:34px;background:var(--pink);box-shadow:var(--o);display:flex;align-items:center;justify-content:center;font:400 12px var(--px);color:var(--ink);position:relative}
 .pin::after{content:"";position:absolute;left:12px;bottom:-12px;width:10px;height:8px;background:var(--ink)}
 .pin.blue{background:var(--blue)}
@@ -83,7 +83,7 @@ svg.i{display:block;flex:none;color:inherit;image-rendering:pixelated}
 #hud{position:absolute;z-index:600;top:calc(14px + env(safe-area-inset-top));left:16px;right:76px;display:flex;justify-content:space-between;gap:8px;padding:12px;font:400 11px/1 var(--px);margin-right:4px}
 #hud b{font-weight:400}
 .recenter{position:absolute;right:16px;top:calc(14px + env(safe-area-inset-top));z-index:600;width:48px;height:48px;padding:0;min-height:0;margin:0}
-#panel{position:absolute;z-index:500;left:16px;right:16px;bottom:20px;padding:18px 16px 12px;text-align:center}
+#panel{position:absolute;z-index:500;left:16px;right:16px;bottom:40px;padding:18px 16px 12px;text-align:center}
 #panel h1{font-size:15px;margin:0 0 6px;text-transform:uppercase}
 #panel .sub{margin:0 0 14px;color:var(--muted);font-size:18px}
 .go{
@@ -113,14 +113,14 @@ svg.i{display:block;flex:none;color:inherit;image-rendering:pixelated}
 #recbar button{border:0;background:var(--white);box-shadow:var(--o);padding:10px 14px;font:400 11px var(--px)}
 
 /* journal */
-#jmap{top:0;left:0;right:0;height:38%;border-bottom:4px solid var(--ink)}
-#jlist{position:absolute;left:0;right:0;top:38%;bottom:0;overflow-y:auto;padding:22px 20px 40px;-webkit-overflow-scrolling:touch}
+#jlist{position:absolute;inset:0;overflow-y:auto;padding:calc(20px + env(safe-area-inset-top)) 20px 44px;-webkit-overflow-scrolling:touch}
+#jlist h2,#profile h2{font-size:17px;margin:4px 4px 22px;text-transform:uppercase}
 .empty{text-align:center;padding:24px 16px;margin:0 4px}
 .empty h3{font-size:13px;margin-bottom:10px}
 .empty p{margin:0;color:var(--muted)}
 .day{padding:14px 14px 10px;margin:0 4px 24px}
 .day.sel{background:var(--pink)}
-.dayhead{display:block;width:100%;border:0;background:none;text-align:left;padding:0 0 10px}
+.dayhead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;width:100%;border:0;background:none;text-align:left;padding:0 0 10px}
 .dayhead h3{font-size:12px}
 .dayhead span{display:block;font-size:16px;color:var(--muted);margin-top:6px}
 .day.sel .dayhead span{color:var(--ink)}
@@ -131,12 +131,18 @@ svg.i{display:block;flex:none;color:inherit;image-rendering:pixelated}
 .vchip{display:flex;align-items:center;justify-content:center;gap:8px;border:0;background:var(--blue);color:var(--ink);padding:0 10px;height:44px;font:400 12px var(--px);box-shadow:var(--o)}
 .item.pair .vchip{margin-top:6px}
 .cap{font-size:15px;color:var(--muted);line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.clearfilter{display:none;margin:0 4px 20px}
-.clearfilter.on{display:flex}
 
-/* settings */
-#settings{position:absolute;inset:0;overflow-y:auto;padding:calc(20px + env(safe-area-inset-top)) 20px 44px;-webkit-overflow-scrolling:touch}
-#settings h2{font-size:17px;margin:4px 4px 22px;text-transform:uppercase}
+/* map tab */
+#mapbar{position:absolute;z-index:600;top:calc(14px + env(safe-area-inset-top));left:16px;right:76px;padding:10px 10px 4px}
+#mapbar .seg{margin:0 0 8px}
+#mapbar .seg button{padding:10px 4px}
+#mapbar .opts{display:flex;gap:8px;margin:0 0 8px}
+#mapbar .opts[hidden]{display:none}
+#mapbar select,#mapbar input[type=date]{flex:1;min-width:0;border:0;background:var(--ground);box-shadow:var(--o);padding:8px;font:400 16px var(--body);border-radius:0;color:var(--ink);margin:4px}
+#mapbar .count{font-size:14px;color:var(--muted);margin:0 0 6px}
+
+/* profile */
+#profile{position:absolute;inset:0;overflow-y:auto;padding:calc(20px + env(safe-area-inset-top)) 20px 44px;-webkit-overflow-scrolling:touch}
 .card{padding:16px;margin:0 4px 28px}
 .card h3{font-size:12px;margin-bottom:8px}
 .card p{margin:2px 0 12px;color:var(--muted);font-size:17px}
@@ -155,11 +161,41 @@ svg.i{display:block;flex:none;color:inherit;image-rendering:pixelated}
 .bar.on{display:block}
 .bar i{display:block;height:100%;background:var(--pink);width:0}
 
+/* entries + entry form */
+.jhead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:4px 4px 22px}
+#jlist .jhead h2{margin:0}
+.jhead .btn{flex:none;width:auto;min-width:100px;margin:0}
+.day>.items{margin-bottom:16px}
+.entry{background:var(--ground);box-shadow:var(--o);padding:10px 12px 12px;margin:0 4px 18px}
+.ehead{display:block;width:100%;border:0;background:none;text-align:left;padding:0 0 6px}
+.etime{display:flex;align-items:center;gap:8px;font:400 10px var(--px);margin-bottom:8px}
+.etext{display:block;font-size:18px;white-space:pre-wrap;word-break:break-word}
+.entry .items{margin-top:6px}
+#eform{position:fixed;inset:0;z-index:3000;background:var(--ground);display:none;overflow-y:auto;padding:calc(20px + env(safe-area-inset-top)) 20px calc(40px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+#eform.on{display:block}
+#eform h2{font-size:17px;margin:4px 4px 22px;text-transform:uppercase}
+.fin{display:block;width:100%;min-width:0;min-height:48px;border:0;background:var(--white);box-shadow:var(--o);padding:12px;font:18px/1.3 var(--body);border-radius:0;-webkit-appearance:none;appearance:none;color:var(--ink)}
+textarea.fin{resize:none;min-height:110px}
+.fitem{position:relative;width:100px}
+.fitem .vchip{justify-content:flex-start;padding-right:26px}
+.fitem .x{position:absolute;top:-10px;right:-10px;width:32px;height:32px;border:0;background:var(--pink);box-shadow:var(--o);font:400 12px var(--px);padding:0;z-index:2}
+#pick{position:relative;z-index:0;height:230px;margin:10px 4px 14px;box-shadow:var(--o);background:var(--blue)}
+#pick[hidden]{display:none}
+#t-mic{position:absolute;z-index:2001;left:calc(50% + 46px);bottom:calc(var(--tabh) - 10px);width:40px;height:40px;padding:0;border:0;background:var(--blue);display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--o),0 4px 0 0 var(--ink),inset 0 -4px 0 0 var(--blue2),inset 0 3px 0 0 rgba(255,255,255,.65)}
+#t-mic:active{transform:translateY(2px)}
+#t-mic.rec{background:var(--pink);animation:blink 1s steps(2) infinite}
+
 /* tabs */
 #tabs{position:absolute;left:0;right:0;bottom:0;height:var(--tabh);z-index:2000;display:flex;background:var(--white);border-top:4px solid var(--ink);padding-bottom:env(safe-area-inset-bottom)}
 #tabs button{flex:1;border:0;background:none;color:var(--ink);font:400 10px var(--px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-transform:uppercase}
 #tabs button.on{background:var(--pink)}
 #tabs button+button{border-left:4px solid var(--ink)}
+#tabs button.cam{flex:none;width:92px;background:none;border:0;position:relative;padding:0}
+#tabs button.cam+button{border-left:0}
+#tabs button.cam b{position:absolute;left:50%;top:-26px;width:68px;height:68px;margin-left:-34px;background:var(--pink);display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--o),0 8px 0 0 var(--ink),inset 0 -6px 0 0 var(--pink2),inset 0 6px 0 0 rgba(255,255,255,.65)}
+#tabs button.cam:active b{transform:translateY(4px);box-shadow:var(--o),inset 0 -6px 0 0 var(--pink2)}
 
 /* viewer + toast */
 #viewer{position:fixed;inset:0;z-index:3000;background:rgba(27,22,48,.94);display:none;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
@@ -189,22 +225,32 @@ svg.i{display:block;flex:none;color:inherit;image-rendering:pixelated}
   </section>
 
   <section class="view" id="v-journal">
-    <div class="mapbox" id="jmap"></div>
     <div id="jlist"></div>
   </section>
 
-  <section class="view" id="v-settings">
-    <div id="settings"></div>
+  <section class="view" id="v-map">
+    <div class="mapbox" id="bmap" style="inset:0"></div>
+    <div id="mapbar" class="box"></div>
+    <button class="btn ghost recenter" id="recenter2" aria-label="Centre map on me"></button>
+  </section>
+
+  <section class="view" id="v-profile">
+    <div id="profile"></div>
   </section>
 
   <nav id="tabs">
     <button data-tab="today" class="on" id="t-today"></button>
     <button data-tab="journal" id="t-journal"></button>
-    <button data-tab="settings" id="t-settings"></button>
+    <button class="cam" id="t-cam" aria-label="Camera"></button>
+    <button data-tab="map" id="t-map"></button>
+    <button data-tab="profile" id="t-profile"></button>
   </nav>
+  <button id="t-mic" aria-label="Quick voice note"></button>
 </div>
 
+<div id="eform"></div>
 <input type="file" id="camInput" accept="image/*" capture="environment" hidden>
+<input type="file" id="entryPhoto" accept="image/*" multiple hidden>
 <input type="file" id="importInput" accept="application/json,.json" hidden>
 
 <div id="viewer">
@@ -227,6 +273,8 @@ const $ = (s, r = document) => r.querySelector(s);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const pad = n => String(n).padStart(2, '0');
 const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+const dateStr = ts => { const d = new Date(ts); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+const toLocalInput = ts => { const d = new Date(ts); return dateStr(ts) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -265,26 +313,32 @@ const BM = {
   play: ['#......', '###....', '#####..', '#######', '#####..', '###....', '#......'],
   cross: ['....#....', '....#....', '....#....', '....#....', '####.####', '....#....', '....#....', '....#....', '....#....'],
   heart: ['.kkk.kkk.', 'kpwpkpppk', 'kpppppppk', 'kpppppppk', '.kpppppk.', '..kpppk..', '...kpk...', '....k....'],
+  map: ['.....####.....', '####.####.####', '####.####.####', '####.####.####', '####.####.####', '####.####.####', '####.####.####', '####.####.####', '####.####.####', '####.....####'],
+  person: ['..####..', '.######.', '.######.', '..####..', '........', '.######.', '########', '########', '########'],
   flag: ['kkkkkkk..', 'kppppppk.', 'kpwppppk.', 'kppppppk.', 'kkkkkkk..', 'k........', 'k........', 'k........', 'k........', 'k........', 'kk.......', 'kkk......']
 };
 const ICON = {
   cam: px(BM.cam, 3), mic: px(BM.mic, 3), pin: px(BM.pin), pinS: px(BM.pin, 1.5), book: px(BM.book), sliders: px(BM.sliders),
-  die: px(BM.die), play: px(BM.play, 2), cross: px(BM.cross), micS: px(BM.mic, 1.5), bookB: px(BM.book, 2)
+  map: px(BM.map), person: px(BM.person), die: px(BM.die), play: px(BM.play, 2), cross: px(BM.cross), micS: px(BM.mic, 1.5), bookB: px(BM.book, 2)
 };
 
 /* ---------- storage (IndexedDB) ---------- */
 let db;
 function openDB() {
   return new Promise((res, rej) => {
-    const r = indexedDB.open('wander', 1);
-    r.onupgradeneeded = () => {
+    const r = indexedDB.open('wander', 2);
+    r.onupgradeneeded = e => {
       const d = r.result;
-      d.createObjectStore('walks', { keyPath: 'id' });
-      d.createObjectStore('media', { keyPath: 'id' }).createIndex('date', 'date');
-      d.createObjectStore('bank', { keyPath: 'id', autoIncrement: true });
-      d.createObjectStore('kv');
+      if (e.oldVersion < 1) {
+        d.createObjectStore('walks', { keyPath: 'id' });
+        d.createObjectStore('media', { keyPath: 'id' }).createIndex('date', 'date');
+        d.createObjectStore('bank', { keyPath: 'id', autoIncrement: true });
+        d.createObjectStore('kv');
+      }
+      if (e.oldVersion < 2) d.createObjectStore('entries', { keyPath: 'id' }).createIndex('date', 'date');   // manual journal entries, not tied to a walk
     };
-    r.onsuccess = () => { db = r.result; res(); };
+    r.onblocked = () => toast('Close other Wander tabs so it can finish updating.', 6000);
+    r.onsuccess = () => { db = r.result; db.onversionchange = () => db.close(); res(); };
     r.onerror = () => rej(r.error);
   });
 }
@@ -298,7 +352,7 @@ const dbPut = (s, v, k) => tx(s, 'readwrite', o => k === undefined ? o.put(v) : 
 const dbDel = (s, k) => tx(s, 'readwrite', o => o.delete(k));
 
 /* ---------- settings ---------- */
-const defaults = { pace: 5.5, startMode: 'gps', address: null };
+const defaults = { pace: 5.5, startMode: 'gps', address: null, name: '' };
 let settings = { ...defaults };
 const saveSettings = () => dbPut('kv', settings, 'settings');
 
@@ -400,7 +454,7 @@ async function fromBank(start) {
 let today = null;            // today's walk record
 let busy = false;
 let recState = null;         // active voice recording
-let camPos = null;
+let camPosP = null;         // GPS fix being fetched while the camera is open
 
 async function loadToday() { today = (await dbGet('walks', todayStr())) || null; }
 async function paintHud() {
@@ -441,6 +495,7 @@ function onPos() {
   if (!tmap) return;
   if (!tmap.hasLayer(meMarker)) meMarker.addTo(tmap);
   meMarker.setLatLng([pos.lat, pos.lng]);
+  if (bmap) { if (!bmap.hasLayer(bMe)) bMe.addTo(bmap); bMe.setLatLng([pos.lat, pos.lng]); }
   if (!centered && !today) { centered = true; focusOn([pos.lat, pos.lng], 16); }
   if (today && today.status === 'active') updateDistLine();
 }
@@ -460,7 +515,7 @@ async function paintToday(fit) {
   trail(tLayer, today.route, 4, today.approx ? '4 12' : '8 8');
   L.marker([today.start.lat, today.start.lng], { icon: mkPin('blue', 'S') }).addTo(tLayer);
   L.marker([today.dest.lat, today.dest.lng], { icon: flagIcon }).addTo(tLayer);
-  const media = (await dbAll('media')).filter(m => m.date === todayStr() && m.lat != null);
+  const media = (await dbAll('media')).filter(m => m.date === todayStr() && m.lat != null && !m.entryId);
   for (const m of media) L.marker([m.lat, m.lng], { icon: mkPin(m.type === 'photo' ? '' : 'voice', m.type === 'photo' ? 'P' : 'V'), interactive: false }).addTo(tLayer);
   if (fit) fitToday();
 }
@@ -489,7 +544,7 @@ function renderPanel() {
       ${busy ? '' : '<div class="start">PRESS START</div><br>'}
       <button class="chip" id="fromChip">${ICON.pinS}<span>Start: ${esc(from)}</span></button>`;
     $('#goBtn').onclick = doGo;
-    $('#fromChip').onclick = () => showTab('settings');
+    $('#fromChip').onclick = () => showTab('profile');
   } else {
     const w = today, dist = fmtDist(w.distM);
     const approxNote = w.approx ? `<div class="note warn">Offline estimate. The path may not follow real streets.</div>` : '';
@@ -530,8 +585,8 @@ function renderPanel() {
     }
   }
   const cb = $('#camBtn'); if (cb) cb.onclick = openCamera;
-  const mb = $('#micBtn'); if (mb) mb.onclick = toggleRec;
-  const rs = $('#recstop'); if (rs) rs.onclick = toggleRec;
+  const mb = $('#micBtn'); if (mb) mb.onclick = () => toggleRec();
+  const rs = $('#recstop'); if (rs) rs.onclick = () => toggleRec();
   setTimeout(() => tmap && tmap.invalidateSize(), 50);
 }
 function updateDistLine() {
@@ -571,7 +626,8 @@ async function endWalk() { await setStatus('done', 'endedAt'); toast('Walk saved
 
 /* ---------- photos ---------- */
 function openCamera() {
-  camPos = pos ? { lat: pos.lat, lng: pos.lng } : null;
+  // Open the camera first (needs the tap gesture), and grab a GPS fix in the background if we have none.
+  camPosP = pos ? Promise.resolve({ lat: pos.lat, lng: pos.lng }) : getPosOnce().then(p => ({ lat: p.lat, lng: p.lng })).catch(() => null);
   const i = $('#camInput'); i.value = ''; i.click();
 }
 async function shrink(file, max, q) {
@@ -589,22 +645,32 @@ async function onPhoto(e) {
   const f = e.target.files && e.target.files[0]; if (!f) return;
   try {
     const [blob, thumb] = await Promise.all([shrink(f, 1600, .82), shrink(f, 260, .72)]);
-    const p = camPos || (pos && { lat: pos.lat, lng: pos.lng });
+    const p = (await Promise.race([camPosP || null, sleep(2500).then(() => null)])) || (pos && { lat: pos.lat, lng: pos.lng });
     await addMedia({ type: 'photo', blob, thumb, p });
     toast(p ? 'Photo saved to the map.' : 'Photo saved (no location fix yet).');
   } catch (err) { console.error(err); toast('Couldn’t save that photo.', 4000); }
 }
 async function addMedia({ type, blob, thumb = null, dur = null, mime = null, p }) {
-  const m = { id: uid(), type, date: todayStr(), walkId: today ? today.id : null, ts: Date.now(), lat: p ? p.lat : null, lng: p ? p.lng : null, blob, thumb, dur, mime, caption: '' };
+  const onWalk = today && (today.status === 'active' || today.status === 'arrived');   // otherwise it is a standalone item for today
+  const m = { id: uid(), type, date: todayStr(), walkId: onWalk ? today.id : null, ts: Date.now(), lat: p ? p.lat : null, lng: p ? p.lng : null, blob, thumb, dur, mime, caption: '' };
   await dbPut('media', m);
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  refreshViews();
+}
+function refreshViews() {
   if (today) paintToday(false);
+  if ($('#v-map').classList.contains('on')) paintMap().catch(fail('Map'));
+  if ($('#v-journal').classList.contains('on')) renderJournal().catch(fail('Journal'));
 }
 
 /* ---------- voice notes ---------- */
 const MAX_REC = 120;
-async function toggleRec() {
-  if (recState) { recState.stop(); return; }
+async function toggleRec(target) {
+  const toForm = target === 'form';
+  if (recState) {
+    if (!!recState.toForm !== toForm) { toast('Finish the current voice note first.'); return; }
+    recState.stop(); return;
+  }
   if (!navigator.mediaDevices || !window.MediaRecorder) { toast('Voice recording isn’t supported on this browser.', 4000); return; }
   let stream;
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
@@ -614,19 +680,28 @@ async function toggleRec() {
   const chunks = []; const p = pos ? { lat: pos.lat, lng: pos.lng } : null;
   let lock = null;
   try { lock = navigator.wakeLock && await navigator.wakeLock.request('screen'); } catch {}
-  const st = { secs: 0, timer: null, stop() { if (mr.state !== 'inactive') mr.stop(); } };
+  const st = { secs: 0, timer: null, toForm, discard: false, stop() { if (mr.state !== 'inactive') mr.stop(); } };
   mr.ondataavailable = ev => ev.data && ev.data.size && chunks.push(ev.data);
   mr.onstop = async () => {
     clearInterval(st.timer); stream.getTracks().forEach(t => t.stop()); if (lock) lock.release().catch(() => {});
     const type = mr.mimeType || mime || 'audio/mp4'; const secs = st.secs; recState = null;
-    renderPanel();
-    if (chunks.length) { await addMedia({ type: 'voice', blob: new Blob(chunks, { type }), dur: secs, mime: type, p }); toast('Voice note saved.'); }
+    renderPanel(); syncRecUi();
+    if (st.discard || !chunks.length) return;
+    if (toForm) formAddVoice(new Blob(chunks, { type }), type, secs);
+    else { await addMedia({ type: 'voice', blob: new Blob(chunks, { type }), dur: secs, mime: type, p }); toast('Voice note saved.'); }
   };
-  recState = st; mr.start(1000); renderPanel();
+  recState = st; mr.start(1000); renderPanel(); syncRecUi();
   st.timer = setInterval(() => {
-    st.secs++; const t = $('#rect'); if (t) t.textContent = fmtDur(st.secs);
+    st.secs++; const t = $('#rect'); if (t) t.textContent = fmtDur(st.secs); syncRecUi();
     if (st.secs >= MAX_REC) st.stop();
   }, 1000);
+}
+
+function syncRecUi() {
+  $('#t-mic').classList.toggle('rec', !!recState);
+  const f = recState && recState.toForm;
+  const fv = $('#fvoice'); if (fv) fv.textContent = f ? 'STOP' : 'ADD VOICE';
+  const fr = $('#frec'); if (fr) fr.textContent = f ? 'Recording… ' + fmtDur(recState.secs) : '';
 }
 
 /* ---------- viewer ---------- */
@@ -652,6 +727,7 @@ async function closeViewer() {
   if (viewerUrl) { URL.revokeObjectURL(viewerUrl); viewerUrl = null; }
   viewing = null;
   if ($('#v-journal').classList.contains('on')) renderJournal();
+  if ($('#v-map').classList.contains('on')) paintMap();
 }
 async function delViewing() {
   if (!viewing || !confirm('Delete this ' + (viewing.type === 'photo' ? 'photo' : 'voice note') + '?')) return;
@@ -660,8 +736,7 @@ async function delViewing() {
 }
 
 /* ---------- journal ---------- */
-let jmap, jLayer, journalDay = null, jUrls = [];
-function initJournalMap() { jmap = mkMap('jmap'); jLayer = L.layerGroup().addTo(jmap); }
+let journalDay = null, jUrls = [];
 function pairUp(list) {
   const photos = list.filter(m => m.type === 'photo'), used = new Set(), out = [];
   const voices = list.filter(m => m.type === 'voice');
@@ -676,79 +751,290 @@ function pairUp(list) {
   }
   return out;
 }
+function mediaItem(m, voice) {
+  const it = document.createElement('div'); it.className = 'item' + (voice ? ' pair' : '');
+  const url = b => { const u = URL.createObjectURL(b); jUrls.push(u); return u; };
+  if (m.type === 'photo') it.innerHTML = `<button class="thumb" data-id="${m.id}"><img src="${url(m.thumb || m.blob)}" alt=""></button>`;
+  else it.innerHTML = `<button class="vchip" data-id="${m.id}">${ICON.play} ${fmtDur(m.dur || 0)}</button>`;
+  if (voice) it.innerHTML += `<button class="vchip" data-id="${voice.id}">${ICON.micS} ${fmtDur(voice.dur || 0)}</button>`;
+  const caps = [m.caption, voice && voice.caption].filter(Boolean).join(' · ');
+  if (caps) it.innerHTML += `<div class="cap">${esc(caps)}</div>`;
+  return it;
+}
 async function renderJournal() {
   jUrls.forEach(u => URL.revokeObjectURL(u)); jUrls = [];
-  const [walks, media] = await Promise.all([dbAll('walks'), dbAll('media')]);
-  const dates = [...new Set([...walks.map(w => w.date), ...media.map(m => m.date)])].sort().reverse();
-  const box = $('#jlist');
-  if (!dates.length) {
-    box.innerHTML = `<div class="empty box"><h3>No save files yet</h3><p>Take a walk, snap a few photos, and they’ll show up on the map and here.</p></div>`;
-    paintJournalMap(walks, media); return;
-  }
-  box.innerHTML = `<button class="btn ghost small clearfilter ${journalDay ? 'on' : ''}" id="clrDay">SHOW ALL DAYS</button>`;
-  const url = b => { const u = URL.createObjectURL(b); jUrls.push(u); return u; };
-  for (const d of dates) {
-    const w = walks.find(x => x.date === d);
-    const ms = media.filter(m => m.date === d).sort((a, b) => a.ts - b.ts);
-    const dt = new Date(d + 'T12:00:00');
-    const stats = w ? fmtDist(w.distM * 2) + (w.startedAt && w.endedAt ? ' · ' + Math.max(1, Math.round((w.endedAt - w.startedAt) / 60000)) + ' min' : '') : `${ms.length} item${ms.length === 1 ? '' : 's'}`;
-    const card = document.createElement('div'); card.className = 'day box' + (journalDay === d ? ' sel' : '');
-    card.innerHTML = `<button class="dayhead" data-day="${d}"><h3>${esc(dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase())}</h3><span>${esc(stats)}</span></button><div class="items"></div>`;
-    const items = $('.items', card);
-    for (const { m, voice } of pairUp(ms)) {
-      const it = document.createElement('div'); it.className = 'item' + (voice ? ' pair' : '');
-      if (m.type === 'photo') it.innerHTML = `<button class="thumb" data-id="${m.id}"><img src="${url(m.thumb || m.blob)}" alt=""></button>`;
-      else it.innerHTML = `<button class="vchip" data-id="${m.id}">${ICON.play} ${fmtDur(m.dur || 0)}</button>`;
-      if (voice) it.innerHTML += `<button class="vchip" data-id="${voice.id}">${ICON.micS} ${fmtDur(voice.dur || 0)}</button>`;
-      const caps = [m.caption, voice && voice.caption].filter(Boolean).join(' · ');
-      if (caps) it.innerHTML += `<div class="cap">${esc(caps)}</div>`;
-      items.appendChild(it);
-    }
-    if (!ms.length) items.innerHTML = `<div class="cap" style="width:auto">No photos or notes this day.</div>`;
-    box.appendChild(card);
-  }
-  const byId = new Map(media.map(m => [m.id, m]));
+  const [walks, media, entries] = await Promise.all([dbAll('walks'), dbAll('media'), dbAll('entries')]);
+  const byId = new Map(media.map(m => [m.id, m])), entById = new Map(entries.map(e => [e.id, e]));
+  const dates = [...new Set([...walks.map(w => w.date), ...media.map(m => m.date), ...entries.map(e => e.date)])].sort().reverse();
+  const box = $('#jlist'), hi = journalDay; journalDay = null;
+  box.innerHTML = '<div class="jhead"><h2>Journal</h2><button class="btn small" id="addEntry">+ ADD</button></div>';
   box.onclick = e => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.id === 'clrDay') { journalDay = null; renderJournal(); return; }
-    if (b.dataset.day) { journalDay = journalDay === b.dataset.day ? null : b.dataset.day; renderJournal(); return; }
+    if (b.id === 'addEntry') { openEntryForm(null).catch(fail('Entry')); return; }
+    if (b.dataset.entry) { openEntryForm(entById.get(b.dataset.entry)).catch(fail('Entry')); return; }
+    if (b.dataset.day) { const d = b.dataset.day; mapFilter = walks.some(w => w.date === d) ? { mode: 'walk', day: d } : { mode: 'range', from: d, to: d }; showTab('map'); return; }
     if (b.dataset.id) openViewer(byId.get(b.dataset.id));
   };
-  paintJournalMap(walks, media, url, byId);
+  if (!dates.length) {
+    box.innerHTML += `<div class="empty box"><h3>No save files yet</h3><p>Take a walk, snap a few photos, or tap + ADD to write an entry. They’ll show up here and on the map.</p></div>`;
+    return;
+  }
+  for (const d of dates) {
+    const w = walks.find(x => x.date === d);
+    const ms = media.filter(m => m.date === d && !m.entryId).sort((a, b) => a.ts - b.ts);
+    const es = entries.filter(e => e.date === d);
+    // one timeline per day, ordered by the time on each item (entries use the time she set)
+    const seq = [...es.map(e => ({ ts: e.ts, e })), ...pairUp(ms).map(x => ({ ts: x.m.ts, ...x }))].sort((a, b) => a.ts - b.ts);
+    const dt = new Date(d + 'T12:00:00');
+    const stats = w ? fmtDist(w.distM * 2) + (w.startedAt && w.endedAt ? ' · ' + Math.max(1, Math.round((w.endedAt - w.startedAt) / 60000)) + ' min' : '') : `${seq.length} item${seq.length === 1 ? '' : 's'}`;
+    const card = document.createElement('div'); card.className = 'day box' + (hi === d ? ' sel' : '');
+    card.innerHTML = `<button class="dayhead" data-day="${d}" aria-label="Show this day on the map"><div><h3>${esc(dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase())}</h3><span>${esc(stats)}</span></div>${ICON.pinS}</button>`;
+    let group = null;
+    for (const x of seq) {
+      if (x.e) {
+        const e = x.e, em = media.filter(m => m.entryId === e.id).sort((a, b) => a.ts - b.ts);
+        const t = new Date(e.ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+        const div = document.createElement('div'); div.className = 'entry';
+        div.innerHTML = `<button class="ehead" data-entry="${e.id}" aria-label="Edit this entry"><span class="etime">${esc(t)}${e.lat != null ? ICON.pinS : ''}</span><span class="etext${e.text ? '' : ' cap'}">${e.text ? esc(e.text) : '(photos and voice only)'}</span></button>`;
+        if (em.length) { const g = document.createElement('div'); g.className = 'items'; em.forEach(m => g.appendChild(mediaItem(m, null))); div.appendChild(g); }
+        card.appendChild(div); group = null;
+      } else {
+        if (!group) { group = document.createElement('div'); group.className = 'items'; card.appendChild(group); }
+        group.appendChild(mediaItem(x.m, x.voice));
+      }
+    }
+    if (!seq.length) card.insertAdjacentHTML('beforeend', `<div class="items"><div class="cap" style="width:auto">No photos or notes this day.</div></div>`);
+    box.appendChild(card);
+  }
+  const sel = $('.day.sel', box); if (sel) sel.scrollIntoView({ block: 'center' });
 }
-function paintJournalMap(walks, media, url, byId) {
-  jLayer.clearLayers(); const pts = [];
-  const sel = journalDay;
-  for (const w of walks) {
-    if (sel && w.date !== sel) continue;
-    trail(jLayer, w.route, sel ? 4 : 3, '8 8');
-    if (sel) {
-      L.marker([w.start.lat, w.start.lng], { icon: mkPin('blue', 'S'), interactive: false }).addTo(jLayer);
-      L.marker([w.dest.lat, w.dest.lng], { icon: flagIcon, interactive: false }).addTo(jLayer);
+
+/* ---------- manual entries (journal "+") ---------- */
+let form = null, pickMap = null, pickMk = null, fUrls = [];
+async function openEntryForm(entry) {
+  const media = entry ? (await dbAll('media')).filter(m => m.entryId === entry.id).sort((a, b) => a.ts - b.ts) : [];
+  form = {
+    id: entry ? entry.id : null, createdAt: entry ? entry.createdAt : Date.now(), ts: entry ? entry.ts : Date.now(), text: entry ? entry.text : '',
+    loc: entry ? (entry.lat != null ? { mode: 'map', lat: entry.lat, lng: entry.lng } : { mode: 'none', lat: null, lng: null })
+               : (pos ? { mode: 'me', lat: pos.lat, lng: pos.lng } : { mode: 'none', lat: null, lng: null }),
+    items: media.map(m => ({ ...m, isNew: false })), removed: []
+  };
+  const box = $('#eform');
+  box.innerHTML = `
+    <h2>${entry ? 'Edit entry' : 'New entry'}</h2>
+    <div class="card box"><h3>WHEN</h3><input class="fin" id="fwhen" type="datetime-local" aria-label="Date and time"></div>
+    <div class="card box"><h3>NOTE</h3><textarea class="fin" id="ftext" rows="4" maxlength="1000" placeholder="What happened? (optional)"></textarea></div>
+    <div class="card box"><h3>PHOTOS AND VOICE</h3>
+      <div class="items" id="fitems" style="margin:14px 0 18px"></div>
+      <div class="row" style="margin-top:0"><button class="btn small blue" id="fphoto">ADD PHOTO</button><button class="btn small ghost" id="fvoice">ADD VOICE</button></div>
+      <div class="prog" id="frec"></div>
+    </div>
+    <div class="card box"><h3>WHERE</h3>
+      <div class="seg"><button data-l="me">MY SPOT</button><button data-l="map">TAP MAP</button><button data-l="none">NONE</button></div>
+      <div id="pick" hidden></div>
+      <p id="floc" style="margin-bottom:0"></p>
+    </div>
+    <div class="row" style="margin-top:0"><button class="btn ghost" id="fcancel">CANCEL</button><button class="btn" id="fsave">SAVE</button></div>
+    ${entry ? '<div class="row"><button class="btn ghost small" id="fdel">DELETE ENTRY</button></div>' : ''}`;
+  $('#fwhen').value = toLocalInput(form.ts); $('#ftext').value = form.text;
+  $('#fphoto').onclick = () => { const i = $('#entryPhoto'); i.value = ''; i.click(); };
+  $('#fvoice').onclick = () => toggleRec('form');
+  box.querySelectorAll('[data-l]').forEach(b => b.onclick = () => setLocMode(b.dataset.l).catch(fail('Location')));
+  $('#fcancel').onclick = cancelForm; $('#fsave').onclick = () => saveForm().catch(fail('Save'));
+  const d = $('#fdel'); if (d) d.onclick = () => delEntry().catch(fail('Delete'));
+  box.classList.add('on'); box.scrollTop = 0;
+  paintFormItems(); paintFormLoc(); syncRecUi();
+}
+async function setLocMode(mode) {
+  const old = form.loc;
+  if (mode === 'me') {
+    let p = pos;
+    if (!p) { try { p = await getPosOnce(); } catch (e) { toast(e.message, 4500); return; } }
+    form.loc = { mode, lat: p.lat, lng: p.lng };
+  } else if (mode === 'map') form.loc = { mode, lat: old.lat, lng: old.lng };
+  else form.loc = { mode: 'none', lat: null, lng: null };
+  paintFormLoc();
+}
+function paintFormLoc() {
+  const l = form.loc;
+  $('#eform').querySelectorAll('[data-l]').forEach(b => b.classList.toggle('on', b.dataset.l === l.mode));
+  $('#pick').hidden = l.mode !== 'map';
+  $('#floc').textContent = l.mode === 'none' ? 'No location. This entry won’t show on the map.'
+    : l.lat == null ? 'Tap the map to drop a pin.'
+    : (l.mode === 'me' ? 'Using your current spot: ' : 'Pinned: ') + l.lat.toFixed(4) + ', ' + l.lng.toFixed(4);
+  if (l.mode !== 'map') return;
+  if (!pickMap) {
+    pickMap = mkMap('pick');
+    const c = l.lat != null ? [l.lat, l.lng] : pos ? [pos.lat, pos.lng] : null; if (c) pickMap.setView(c, 16, { animate: false });   // no animation: the map can be removed mid-zoom when the form closes
+    pickMap.on('click', ev => { form.loc = { mode: 'map', lat: ev.latlng.lat, lng: ev.latlng.lng }; paintFormLoc(); });
+  }
+  setTimeout(() => {
+    if (!pickMap) return;
+    pickMap.invalidateSize();
+    if (pickMk) { pickMk.remove(); pickMk = null; }
+    if (l.lat != null) pickMk = L.marker([l.lat, l.lng], { icon: mkPin('', px(BM.book, 1.5)), interactive: false }).addTo(pickMap);
+  }, 0);
+}
+function paintFormItems() {
+  fUrls.forEach(u => URL.revokeObjectURL(u)); fUrls = [];
+  const box = $('#fitems');
+  box.innerHTML = form.items.length ? '' : '<div class="cap" style="width:auto">No photos or voice notes yet.</div>';
+  form.items.forEach((it, i) => {
+    const d = document.createElement('div'); d.className = 'fitem';
+    if (it.type === 'photo') { const u = URL.createObjectURL(it.thumb || it.blob); fUrls.push(u); d.innerHTML = `<div class="thumb"><img src="${u}" alt=""></div>`; }
+    else d.innerHTML = `<div class="vchip">${ICON.micS} ${fmtDur(it.dur || 0)}</div>`;
+    d.insertAdjacentHTML('beforeend', `<button class="x" data-i="${i}" aria-label="Remove">X</button>`);
+    box.appendChild(d);
+  });
+  box.onclick = e => {
+    const b = e.target.closest('.x'); if (!b) return;
+    const [it] = form.items.splice(+b.dataset.i, 1); if (!it.isNew) form.removed.push(it.id);
+    paintFormItems();
+  };
+}
+function formAddVoice(blob, mime, dur) {
+  if (!form) return;
+  form.items.push({ id: uid(), type: 'voice', blob, mime, dur, thumb: null, isNew: true });
+  paintFormItems(); toast('Voice note added.');
+}
+async function onEntryPhotos(e) {
+  const files = [...(e.target.files || [])]; if (!files.length) return;
+  try {
+    for (const f of files) {
+      const [blob, thumb] = await Promise.all([shrink(f, 1600, .82), shrink(f, 260, .72)]);
+      if (!form) return;
+      form.items.push({ id: uid(), type: 'photo', blob, thumb, isNew: true });
+    }
+    paintFormItems();
+  } catch (err) { console.error(err); toast('Couldn’t add that photo.', 4000); }
+}
+function closeForm() {
+  if (recState && recState.toForm) { recState.discard = true; recState.stop(); }
+  $('#eform').classList.remove('on'); $('#eform').innerHTML = '';
+  if (pickMap) { pickMap.remove(); pickMap = null; pickMk = null; }
+  fUrls.forEach(u => URL.revokeObjectURL(u)); fUrls = []; form = null;
+}
+function cancelForm() {
+  if (!form) return;
+  const dirty = $('#ftext').value.trim() !== (form.text || '').trim() || form.items.some(i => i.isNew) || form.removed.length;
+  if (dirty && !confirm('Discard your changes?')) return;
+  closeForm();
+}
+async function saveForm() {
+  if (!form) return;
+  if (recState && recState.toForm) { toast('Stop the voice note first.'); return; }
+  const text = $('#ftext').value.trim();
+  const when = $('#fwhen').value ? new Date($('#fwhen').value).getTime() : NaN;
+  const ts = Number.isFinite(when) ? when : form.ts;
+  if (!text && !form.items.length) { toast('Add a note, a photo or a voice note first.', 3500); return; }
+  const l = form.loc;
+  if (l.mode === 'map' && l.lat == null) { toast('Tap the map to drop a pin, or choose None.', 3500); return; }
+  const lat = l.mode === 'none' ? null : l.lat, lng = l.mode === 'none' ? null : l.lng;
+  const entry = { id: form.id || uid(), ts, date: dateStr(ts), text, lat, lng, createdAt: form.createdAt, updatedAt: Date.now() };
+  await dbPut('entries', entry);
+  for (const id of form.removed) await dbDel('media', id);
+  for (const it of form.items) {
+    const m = { ...it, date: entry.date, walkId: null, entryId: entry.id, ts, lat, lng, caption: it.caption || '' };
+    delete m.isNew; await dbPut('media', m);
+  }
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  closeForm(); toast('Entry saved.'); refreshViews();
+}
+async function delEntry() {
+  if (!form || !form.id || !confirm('Delete this entry and its photos and voice notes?')) return;
+  const id = form.id;
+  for (const m of (await dbAll('media')).filter(m => m.entryId === id)) await dbDel('media', m.id);
+  await dbDel('entries', id);
+  closeForm(); toast('Entry deleted.'); refreshViews();
+}
+
+/* ---------- map tab ---------- */
+let bmap, bLayer, bMe, bUrls = [], bSeq = 0;
+let mapFilter = { mode: 'all', day: null, from: null, to: null };
+function initBigMap() {
+  bmap = mkMap('bmap'); bLayer = L.layerGroup().addTo(bmap);
+  bMe = L.marker([0, 0], { icon: meIcon, interactive: false, zIndexOffset: 1000 });
+  if (pos) bMe.setLatLng([pos.lat, pos.lng]).addTo(bmap);
+  $('#recenter2').onclick = () => { if (pos) bmap.setView([pos.lat, pos.lng], Math.max(bmap.getZoom(), 16)); else toast('Still finding you…'); };
+  const bar = $('#mapbar');
+  bar.onclick = e => {
+    const b = e.target.closest('button[data-m]'); if (!b) return;
+    mapFilter.mode = b.dataset.m; paintMap().catch(fail('Map'));
+  };
+  bar.onchange = e => {
+    if (e.target.id === 'mWalk') mapFilter.day = e.target.value;
+    else if (e.target.id === 'mFrom') mapFilter.from = e.target.value || null;
+    else if (e.target.id === 'mTo') mapFilter.to = e.target.value || null;
+    else return;
+    paintMap().catch(fail('Map'));
+  };
+}
+function renderMapBar(walkDates, text) {
+  const f = mapFilter, md = d => new Date(d + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  $('#mapbar').innerHTML = `
+    <div class="seg">
+      <button data-m="all" class="${f.mode === 'all' ? 'on' : ''}">ALL</button>
+      <button data-m="walk" class="${f.mode === 'walk' ? 'on' : ''}">A WALK</button>
+      <button data-m="range" class="${f.mode === 'range' ? 'on' : ''}">DATES</button>
+    </div>
+    <div class="opts" ${f.mode === 'walk' ? '' : 'hidden'}><select id="mWalk" aria-label="Pick a walk">${walkDates.map(d => `<option value="${d}" ${d === f.day ? 'selected' : ''}>${esc(md(d))}</option>`).join('') || '<option>No walks yet</option>'}</select></div>
+    <div class="opts" ${f.mode === 'range' ? '' : 'hidden'}><input type="date" id="mFrom" aria-label="From" value="${f.from || ''}"><input type="date" id="mTo" aria-label="To" value="${f.to || ''}"></div>
+    <div class="count">${esc(text)}</div>`;
+}
+async function paintMap() {
+  if (!bmap) return;
+  const my = ++bSeq;
+  const [walks, media, entries] = await Promise.all([dbAll('walks'), dbAll('media'), dbAll('entries')]);
+  if (my !== bSeq) return;
+  bUrls.forEach(u => URL.revokeObjectURL(u)); bUrls = [];
+  const f = mapFilter, walkDates = walks.map(w => w.date).sort().reverse();
+  if (f.mode === 'walk' && (!f.day || (!walkDates.includes(f.day) && walkDates.length && !media.some(m => m.date === f.day)))) f.day = walkDates[0] || null;
+  if (f.mode === 'range') { f.from = f.from || f.to || todayStr(); f.to = f.to || f.from; }
+  const lo = f.mode === 'range' ? (f.from <= f.to ? f.from : f.to) : null, hi = f.mode === 'range' ? (f.from <= f.to ? f.to : f.from) : null;
+  const inView = d => f.mode === 'all' || (f.mode === 'walk' ? d === f.day : d >= lo && d <= hi);
+  const ws = walks.filter(w => inView(w.date)), ms = media.filter(m => m.lat != null && !m.entryId && inView(m.date)), es = entries.filter(e => e.lat != null && inView(e.date));
+  const byId = new Map(media.map(m => [m.id, m]));
+  const url = b => { const u = URL.createObjectURL(b); bUrls.push(u); return u; };
+  bLayer.clearLayers(); const pts = [];
+  for (const w of ws) {
+    trail(bLayer, w.route, f.mode === 'all' ? 3 : 4, '8 8');
+    if (f.mode !== 'all') {
+      L.marker([w.start.lat, w.start.lng], { icon: mkPin('blue', 'S'), interactive: false }).addTo(bLayer);
+      L.marker([w.dest.lat, w.dest.lng], { icon: flagIcon, interactive: false }).addTo(bLayer);
     }
     pts.push(...w.route);
   }
-  for (const m of media) {
-    if (m.lat == null || (sel && m.date !== sel)) continue;
-    const inner = m.type === 'photo' && url ? `<img src="${url(m.thumb || m.blob)}" alt="">` : px(BM.mic, 1.5);
+  for (const m of ms) {
+    const inner = m.type === 'photo' ? `<img src="${url(m.thumb || m.blob)}" alt="">` : px(BM.mic, 1.5);
     const mk = L.marker([m.lat, m.lng], { icon: L.divIcon({ className: '', html: `<div class="pin ${m.type === 'photo' ? 'photo' : 'voice'}">${inner}</div>`, iconSize: [34, 34], iconAnchor: [17, 46] }) });
-    mk.on('click', () => byId && openViewer(byId.get(m.id)));
-    mk.addTo(jLayer); pts.push([m.lat, m.lng]);
+    mk.on('click', () => openViewer(byId.get(m.id)));
+    mk.addTo(bLayer); pts.push([m.lat, m.lng]);
   }
+  for (const e of es) {
+    const mk = L.marker([e.lat, e.lng], { icon: mkPin('', px(BM.book, 1.5)) });
+    mk.on('click', () => openEntryForm(e).catch(fail('Entry')));
+    mk.addTo(bLayer); pts.push([e.lat, e.lng]);
+  }
+  const np = ms.length + es.length;
+  renderMapBar(walkDates, `${ws.length} walk${ws.length === 1 ? '' : 's'} · ${np} pin${np === 1 ? '' : 's'}`);
   setTimeout(() => {
-    jmap.invalidateSize();
-    if (pts.length) jmap.fitBounds(L.latLngBounds(pts), { padding: [50, 50], maxZoom: 17 });
-    else if (pos) jmap.setView([pos.lat, pos.lng], 15);
+    bmap.invalidateSize();
+    if (pts.length) bmap.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [40, $('#mapbar').offsetHeight + 50], paddingBottomRight: [40, 70], maxZoom: 17 });
+    else if (pos) bmap.setView([pos.lat, pos.lng], 15);
   }, 60);
 }
 
-/* ---------- settings screen ---------- */
+/* ---------- profile screen (name, character, settings) ---------- */
 async function tileCount() { try { return (await (await caches.open('wander-tiles')).keys()).length; } catch { return 0; } }
-async function renderSettings() {
+async function renderProfile() {
   const n = await tileCount(), bank = (await dbAll('bank')).length;
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-  $('#settings').innerHTML = `
-    <h2>Options</h2>
+  $('#profile').innerHTML = `
+    <h2>Profile</h2>
+    <div class="card box"><h3>YOUR NAME</h3>
+      <div class="field" style="margin-bottom:0"><input id="pname" type="text" maxlength="20" placeholder="What should we call you?" value="${esc(settings.name)}"></div>
+    </div>
+    <div class="card box"><h3>YOUR CHARACTER</h3><p>Your pixel character will live here. Coming up next.</p></div>
     <div class="card box"><h3>START POINT</h3>
       <div class="seg"><button data-mode="gps" class="${settings.startMode === 'gps' ? 'on' : ''}">MY LOCATION</button><button data-mode="address" class="${settings.startMode === 'address' ? 'on' : ''}">AN ADDRESS</button></div>
       <div class="field"><input id="addr" type="text" placeholder="e.g. 100 Queen St W" value="${esc(settings.address ? settings.address.query : '')}"><button class="btn small" id="addrGo">SET</button></div>
@@ -768,9 +1054,10 @@ async function renderSettings() {
     ${standalone ? '' : `<div class="card box"><h3>INSTALL</h3><p>iPhone: tap Share, then Add to Home Screen. Android: menu, then Install app. Installed apps keep their photos safe and open instantly.</p></div>`}
     <p style="text-align:center;color:var(--muted);font-size:15px;margin:0 4px">Map data © OpenStreetMap contributors</p>
   `;
-  $('#settings').querySelectorAll('.seg button').forEach(b => b.onclick = async () => {
+  $('#pname').oninput = e => { settings.name = e.target.value.trim(); saveSettings(); };
+  $('#profile').querySelectorAll('.seg button').forEach(b => b.onclick = async () => {
     if (b.dataset.mode === 'address' && !settings.address) { toast('Enter an address and tap Set first.'); return; }
-    settings.startMode = b.dataset.mode; await saveSettings(); renderSettings();
+    settings.startMode = b.dataset.mode; await saveSettings(); renderProfile();
   });
   $('#addrGo').onclick = setAddress;
   $('#addr').onkeydown = e => { if (e.key === 'Enter') setAddress(); };
@@ -788,7 +1075,7 @@ async function setAddress() {
     const j = await r.json();
     if (!j.length) { toast('Couldn’t find that address. Try adding the city.', 4000); return; }
     settings.address = { query: q, lat: +j[0].lat, lng: +j[0].lon, label: j[0].display_name.split(',').slice(0, 3).join(',') };
-    settings.startMode = 'address'; await saveSettings(); toast('Starting from that address.'); renderSettings();
+    settings.startMode = 'address'; await saveSettings(); toast('Starting from that address.'); renderProfile();
   } catch { toast('Address lookup failed. Check your connection.', 4000); }
   finally { const b = $('#addrGo'); if (b) b.disabled = false; }
 }
@@ -826,7 +1113,7 @@ async function saveArea() {
     setProg(fail > urls.length * .1 ? `Saved most of the map (${fail} tiles failed). Try again on better Wi-Fi.` : 'Map area saved.', null);
     toast(fail > urls.length * .1 ? 'Some tiles failed. Try again.' : 'Map saved for offline use.');
   } catch (e) { toast(e.message || 'Couldn’t save the map.', 4000); }
-  finally { saving = false; renderSettings(); }
+  finally { saving = false; renderProfile(); }
 }
 let prepping = false;
 async function prepBank() {
@@ -847,7 +1134,7 @@ async function prepBank() {
     }
     toast(made ? `${made} spot${made === 1 ? '' : 's'} ready for offline.` : need ? 'Couldn’t reach the route service. Try again.' : 'You already have two weeks ready.');
   } catch (e) { toast(e.message || 'Couldn’t prepare spots.', 4000); }
-  finally { prepping = false; renderSettings(); }
+  finally { prepping = false; renderProfile(); }
 }
 
 /* ---------- backup ---------- */
@@ -855,8 +1142,8 @@ const b2d = b => new Promise((res, rej) => { const r = new FileReader(); r.onloa
 const d2b = d => fetch(d).then(r => r.blob());
 async function exportAll() {
   try {
-    const [walks, media] = await Promise.all([dbAll('walks'), dbAll('media')]);
-    const parts = ['{"v":1,"settings":', JSON.stringify(settings), ',"walks":', JSON.stringify(walks), ',"media":['];
+    const [walks, media, entries] = await Promise.all([dbAll('walks'), dbAll('media'), dbAll('entries')]);
+    const parts = ['{"v":2,"settings":', JSON.stringify(settings), ',"walks":', JSON.stringify(walks), ',"entries":', JSON.stringify(entries), ',"media":['];
     for (let i = 0; i < media.length; i++) {
       const m = media[i];
       parts.push((i ? ',' : '') + JSON.stringify({ ...m, blob: await b2d(m.blob), thumb: m.thumb ? await b2d(m.thumb) : null }));
@@ -876,9 +1163,10 @@ async function importAll(e) {
   try {
     const j = JSON.parse(await f.text()); if (!j || !j.media || !j.walks) throw new Error('bad file');
     for (const w of j.walks) await dbPut('walks', w);
+    for (const en of (j.entries || [])) await dbPut('entries', en);
     for (const m of j.media) await dbPut('media', { ...m, blob: await d2b(m.blob), thumb: m.thumb ? await d2b(m.thumb) : null });
-    await loadToday(); renderPanel(); paintToday(false); paintHud();
-    toast(`Imported ${j.walks.length} walks and ${j.media.length} items.`);
+    await loadToday(); renderPanel(); refreshViews(); paintHud();
+    toast(`Imported ${j.walks.length} walks, ${(j.entries || []).length} entries and ${j.media.length} photos/notes.`);
   } catch { toast('That doesn’t look like a Wander backup.', 4000); }
 }
 
@@ -888,8 +1176,9 @@ function showTab(t) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + t));
   try {
     if (t === 'today') { setTimeout(() => { tmap.invalidateSize(); if (today) fitToday(); }, 50); paintHud(); }
-    if (t === 'journal') { if (!jmap) initJournalMap(); renderJournal().catch(fail('Journal')); }
-    if (t === 'settings') renderSettings().catch(fail('Options'));
+    if (t === 'journal') renderJournal().catch(fail('Journal'));
+    if (t === 'map') { if (!bmap) initBigMap(); paintMap().catch(fail('Map')); }
+    if (t === 'profile') renderProfile().catch(fail('Profile'));
   } catch (e) { fail(t)(e); }
 }
 const fail = name => e => { console.error(e); toast(name + ' error: ' + (e && e.message ? e.message : e), 7000); };
@@ -901,9 +1190,15 @@ async function boot() {
   await loadToday();
   $('#t-today').innerHTML = ICON.pin + 'Today';
   $('#t-journal').innerHTML = ICON.book + 'Journal';
-  $('#t-settings').innerHTML = ICON.sliders + 'Options';
-  $('#recenter').innerHTML = ICON.cross;
-  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+  $('#t-cam').innerHTML = `<b>${ICON.cam}</b>`;
+  $('#t-map').innerHTML = ICON.map + 'Map';
+  $('#t-profile').innerHTML = ICON.person + 'Profile';
+  $('#recenter').innerHTML = ICON.cross; $('#recenter2').innerHTML = ICON.cross;
+  document.querySelectorAll('#tabs button[data-tab]').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+  $('#t-cam').onclick = openCamera;
+  $('#t-mic').innerHTML = px(BM.mic, 2);
+  $('#t-mic').onclick = async () => { const was = !!recState; await toggleRec(); if (!was && recState) toast('Recording… tap the mic again to stop.', 3000); };
+  $('#entryPhoto').onchange = onEntryPhotos;
   initTodayMap();
   $('#camInput').onchange = onPhoto; $('#importInput').onchange = importAll;
   $('#vclose').onclick = closeViewer; $('#vdel').onclick = delViewing;

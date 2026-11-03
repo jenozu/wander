@@ -25,12 +25,12 @@ b=io.BytesIO(); im.save(b,'PNG'); sys.stdout.buffer.write(b.getvalue())"`);
   await page.goto('http://localhost:8765/'); await page.waitForSelector('#goBtn'); await page.waitForTimeout(900); await shot('1-home');
   // fresh-state tab taps
   await page.tap('[data-tab=journal]'); await page.waitForTimeout(700); await shot('2-journal-empty');
-  await page.tap('[data-tab=settings]'); await page.waitForTimeout(500); await shot('3-settings');
-  await page.evaluate(() => document.querySelector('#settings').scrollTo(0, 9999)); await page.waitForTimeout(200); await shot('3b-settings-bottom');
+  await page.tap('[data-tab=profile]'); await page.waitForTimeout(500); await shot('3-settings');
+  await page.evaluate(() => document.querySelector('#profile').scrollTo(0, 9999)); await page.waitForTimeout(200); await shot('3b-settings-bottom');
   await page.tap('[data-tab=today]'); await page.waitForTimeout(300);
   await page.tap('#goBtn'); await page.waitForSelector('#startBtn', { timeout: 15000 }); await page.waitForTimeout(900); await shot('4-planned');
   await page.tap('#startBtn'); await page.waitForSelector('#hereBtn'); await page.waitForTimeout(700); await shot('5-active');
-  await page.setInputFiles('#camInput', { name: 'a.png', mimeType: 'image/png', buffer: fs.readFileSync('/home/claude/wander/build/package/dist/images/layers-2x.png') });
+  await page.setInputFiles('#camInput', { name: 'a.png', mimeType: 'image/png', buffer: fs.readFileSync(require('path').join(__dirname, '..', 'app', 'node_modules', 'leaflet', 'dist', 'images', 'layers-2x.png')) });
   await page.waitForFunction(() => /Photo saved/.test(document.querySelector('#toast').textContent));
   await page.tap('#micBtn'); await page.waitForSelector('#recbar.on'); await page.waitForTimeout(2200); await shot('6-recording');
   await page.tap('#recstop'); await page.waitForFunction(() => /Voice note saved/.test(document.querySelector('#toast').textContent));
@@ -39,6 +39,21 @@ b=io.BytesIO(); im.save(b,'PNG'); sys.stdout.buffer.write(b.getvalue())"`);
   await page.tap('#jBtn'); await page.waitForSelector('.day'); await page.waitForTimeout(900); await shot('9-journal');
   await page.tap('.thumb'); await page.waitForSelector('#viewer.on'); await page.fill('#vcap', 'Blue wall'); await shot('10-viewer');
   await page.tap('#vclose'); await page.waitForTimeout(300);
+  // map tab: pins, filters, journal day -> map, viewer from a pin
+  await page.tap('[data-tab=map]'); await page.waitForSelector('#mapbar .count'); await page.waitForTimeout(900); await shot('11-map-all');
+  console.log('map all:', await page.evaluate(() => document.querySelector('#mapbar .count').textContent), '| pins', await page.evaluate(() => document.querySelectorAll('#v-map .pin').length));
+  await page.tap('#mapbar [data-m=walk]'); await page.waitForTimeout(700); await shot('12-map-walk');
+  await page.tap('#mapbar [data-m=range]'); await page.waitForTimeout(700); await shot('13-map-range');
+  await page.tap('#mapbar [data-m=all]'); await page.waitForTimeout(500);
+  await page.tap('#v-map .pin.voice'); await page.waitForSelector('#viewer.on'); await page.tap('#vclose'); await page.waitForTimeout(300);
+  await page.tap('[data-tab=journal]'); await page.waitForSelector('.dayhead'); await page.tap('.dayhead'); await page.waitForTimeout(700);
+  console.log('day->map tab on:', await page.evaluate(() => document.querySelector('#v-map').classList.contains('on')), '|', await page.evaluate(() => document.querySelector('#mapbar .count').textContent));
+  // camera button anywhere
+  await page.setInputFiles('#camInput', { name: 'b.png', mimeType: 'image/png', buffer: fs.readFileSync(require('path').join(__dirname, '..', 'app', 'node_modules', 'leaflet', 'dist', 'images', 'layers-2x.png')) });
+  await page.waitForFunction(() => /Photo saved/.test(document.querySelector('#toast').textContent)); console.log('camera from journal-origin ok');
+  await page.tap('[data-tab=profile]'); await page.fill('#pname', 'Boo'); await page.waitForTimeout(300); await shot('14-profile');
+  await page.reload(); await page.waitForSelector('#panel h1'); await page.tap('[data-tab=profile]'); await page.waitForTimeout(400);
+  console.log('name persisted:', await page.inputValue('#pname'));
   console.log('hud', await page.evaluate(() => (document.querySelector('#hudL').textContent + ' | ' + document.querySelector('#hudR').textContent)));
   console.log('ERRORS', errors);
   await browser.close();
