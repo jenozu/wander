@@ -1,0 +1,928 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="theme-color" content="#cfe6ff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Wander">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>Wander</title>
+<style>/*LEAFLET_CSS*/</style>
+<style>/*FONTS*/</style>
+<style>
+:root{
+  --ground:#cfe6ff; --ground2:#c3defc; --pink:#ffc2d9; --pink2:#ff9dc0; --blue:#a9d4ff; --blue2:#7fbcf5;
+  --white:#fff; --ink:#1b1630; --muted:#4f5b7a; --rec:#ff7aa8;
+  --px:"Press Start 2P",ui-monospace,Menlo,monospace;
+  --body:"Pixelify Sans",ui-monospace,Menlo,monospace;
+  --tabh:calc(68px + env(safe-area-inset-bottom));
+  --o:-4px 0 0 0 var(--ink),4px 0 0 0 var(--ink),0 -4px 0 0 var(--ink),0 4px 0 0 var(--ink);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{
+  background-color:var(--ground);
+  background-image:conic-gradient(var(--ground2) 25%,transparent 0 50%,var(--ground2) 0 75%,transparent 0);
+  background-size:16px 16px;
+  color:var(--ink);font:18px/1.35 var(--body);overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%;
+  -webkit-font-smoothing:none;
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:manipulation}
+::selection{background:var(--pink);color:var(--ink)}
+:focus-visible{outline:4px solid var(--ink);outline-offset:3px}
+input{caret-color:var(--pink2)}
+h1,h2,h3{font-family:var(--px);font-weight:400;margin:0;line-height:1.5;letter-spacing:0}
+#app{position:fixed;inset:0;overflow:hidden}
+.view{position:absolute;left:0;right:0;top:0;bottom:var(--tabh);display:none;overflow:hidden}
+.view.on{display:block}
+#offline{display:none;position:absolute;top:0;left:0;right:0;z-index:2500;background:var(--ink);color:var(--white);text-align:center;font-size:14px;padding:4px 8px;padding-top:calc(4px + env(safe-area-inset-top))}
+#offline.on{display:block}
+
+/* shared pixel pieces */
+svg.i{display:block;flex:none;color:inherit;image-rendering:pixelated}
+.box{background:var(--white);box-shadow:var(--o),0 8px 0 0 var(--ink)}
+.btn{
+  border:0;background:var(--pink);color:var(--ink);font:400 13px/1.3 var(--px);text-align:center;text-decoration:none;
+  display:flex;gap:10px;align-items:center;justify-content:center;min-height:52px;padding:14px 12px;
+  box-shadow:var(--o),0 8px 0 0 var(--ink),inset 0 -4px 0 0 var(--pink2),inset 0 4px 0 0 rgba(255,255,255,.65);
+  margin-bottom:8px;
+}
+.btn:active:not([disabled]){transform:translateY(4px);box-shadow:var(--o),inset 0 4px 0 0 var(--pink2)}
+.btn.blue{background:var(--blue);box-shadow:var(--o),0 8px 0 0 var(--ink),inset 0 -4px 0 0 var(--blue2),inset 0 4px 0 0 rgba(255,255,255,.65)}
+.btn.blue:active:not([disabled]){box-shadow:var(--o),inset 0 4px 0 0 var(--blue2)}
+.btn.ghost{background:var(--white);box-shadow:var(--o),0 8px 0 0 var(--ink),inset 0 -4px 0 0 #d9e6f8}
+.btn.ghost:active:not([disabled]){box-shadow:var(--o),inset 0 4px 0 0 #d9e6f8}
+.btn.small{min-height:44px;font-size:11px;padding:10px 10px}
+.btn[disabled]{opacity:.55}
+.row{display:flex;gap:16px;margin-top:14px}
+.row>*{flex:1;min-width:0}
+
+/* maps */
+.mapbox{position:absolute;z-index:0;background:var(--blue)}
+.paper-tiles{filter:saturate(.3) contrast(.9) brightness(1.08);filter:url(#pastel)}
+.leaflet-container{background:var(--blue);font-family:var(--body)}
+.leaflet-control-attribution{font:12px var(--body)!important;background:rgba(255,255,255,.85)!important;color:var(--ink)}
+#map .leaflet-top .leaflet-control{margin-top:calc(76px + env(safe-area-inset-top));margin-left:16px}
+.pin{width:34px;height:34px;background:var(--pink);box-shadow:var(--o);display:flex;align-items:center;justify-content:center;font:400 12px var(--px);color:var(--ink);position:relative}
+.pin::after{content:"";position:absolute;left:12px;bottom:-12px;width:10px;height:8px;background:var(--ink)}
+.pin.blue{background:var(--blue)}
+.pin.photo{background:var(--white);padding:0;overflow:visible}
+.pin.photo img{width:34px;height:34px;object-fit:cover;display:block}
+.pin.voice{background:var(--blue)}
+.me{width:27px;height:24px;animation:bob 1s steps(2) infinite}
+@keyframes bob{50%{transform:translateY(-3px)}}
+
+/* today */
+#map{inset:0}
+#hud{position:absolute;z-index:600;top:calc(14px + env(safe-area-inset-top));left:16px;right:76px;display:flex;justify-content:space-between;gap:8px;padding:12px;font:400 11px/1 var(--px);margin-right:4px}
+#hud b{font-weight:400}
+.recenter{position:absolute;right:16px;top:calc(14px + env(safe-area-inset-top));z-index:600;width:48px;height:48px;padding:0;min-height:0;margin:0}
+#panel{position:absolute;z-index:500;left:16px;right:16px;bottom:20px;padding:18px 16px 12px;text-align:center}
+#panel h1{font-size:15px;margin:0 0 6px;text-transform:uppercase}
+#panel .sub{margin:0 0 14px;color:var(--muted);font-size:18px}
+.go{
+  width:164px;height:164px;border:0;background:var(--pink);color:var(--ink);font:400 38px/1 var(--px);text-shadow:3px 3px 0 var(--white);
+  margin:6px auto 22px;display:block;
+  box-shadow:var(--o),0 8px 0 0 var(--ink),inset 0 -8px 0 0 var(--pink2),inset 0 8px 0 0 rgba(255,255,255,.65);
+}
+.go:active:not([disabled]){transform:translateY(8px);box-shadow:var(--o),inset 0 8px 0 0 var(--pink2)}
+.go[disabled]{font-size:13px;line-height:1.5;padding:0 14px;text-shadow:none}
+.start{font:400 10px var(--px);display:inline-block;animation:blink 1s steps(2) infinite;margin:0 0 12px}
+@keyframes blink{50%{opacity:0}}
+.chip{border:0;background:var(--blue);padding:9px 12px;font:400 14px var(--body);color:var(--ink);display:inline-flex;gap:8px;align-items:center;max-width:100%;box-shadow:var(--o);margin-bottom:6px}
+.chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.big{font:400 26px/1.2 var(--px);margin:4px 0 4px}
+.big small{display:block;font:400 18px/1.3 var(--body);color:var(--muted);margin-top:6px}
+.note{font-size:16px;color:var(--muted);margin:2px 0 8px}
+.note.warn{color:var(--ink);background:var(--pink);padding:6px 8px;box-shadow:var(--o)}
+.capture{display:flex;justify-content:center;gap:28px;margin:12px 0 10px}
+.round{display:flex;flex-direction:column;align-items:center;gap:12px;border:0;background:none;font:400 15px var(--body);color:var(--ink);padding:0}
+.round b{width:76px;height:76px;background:var(--ink);color:var(--white);display:flex;align-items:center;justify-content:center;box-shadow:var(--o),0 8px 0 0 var(--ink),inset 0 4px 0 0 rgba(255,255,255,.25)}
+.round.mic b{background:var(--blue);color:var(--ink);box-shadow:var(--o),0 8px 0 0 var(--ink),inset 0 -4px 0 0 var(--blue2),inset 0 4px 0 0 rgba(255,255,255,.65)}
+.round:active b{transform:translateY(4px)}
+#recbar{display:none;align-items:center;gap:12px;background:var(--pink);box-shadow:var(--o);padding:10px 12px;margin:0 4px 16px;text-align:left}
+#recbar.on{display:flex}
+#recbar .dot{width:14px;height:14px;background:var(--ink);animation:blink 1s steps(2) infinite}
+#recbar .t{font:400 16px var(--px);flex:1}
+#recbar button{border:0;background:var(--white);box-shadow:var(--o);padding:10px 14px;font:400 11px var(--px)}
+
+/* journal */
+#jmap{top:0;left:0;right:0;height:38%;border-bottom:4px solid var(--ink)}
+#jlist{position:absolute;left:0;right:0;top:38%;bottom:0;overflow-y:auto;padding:22px 20px 40px;-webkit-overflow-scrolling:touch}
+.empty{text-align:center;padding:24px 16px;margin:0 4px}
+.empty h3{font-size:13px;margin-bottom:10px}
+.empty p{margin:0;color:var(--muted)}
+.day{padding:14px 14px 10px;margin:0 4px 24px}
+.day.sel{background:var(--pink)}
+.dayhead{display:block;width:100%;border:0;background:none;text-align:left;padding:0 0 10px}
+.dayhead h3{font-size:12px}
+.dayhead span{display:block;font-size:16px;color:var(--muted);margin-top:6px}
+.day.sel .dayhead span{color:var(--ink)}
+.items{display:flex;flex-wrap:wrap;gap:16px}
+.item{display:flex;flex-direction:column;gap:6px;width:100px}
+.thumb{width:100px;height:100px;border:0;padding:0;background:var(--blue);box-shadow:var(--o)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.vchip{display:flex;align-items:center;justify-content:center;gap:8px;border:0;background:var(--blue);color:var(--ink);padding:0 10px;height:44px;font:400 12px var(--px);box-shadow:var(--o)}
+.item.pair .vchip{margin-top:6px}
+.cap{font-size:15px;color:var(--muted);line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.clearfilter{display:none;margin:0 4px 20px}
+.clearfilter.on{display:flex}
+
+/* settings */
+#settings{position:absolute;inset:0;overflow-y:auto;padding:calc(20px + env(safe-area-inset-top)) 20px 44px;-webkit-overflow-scrolling:touch}
+#settings h2{font-size:17px;margin:4px 4px 22px;text-transform:uppercase}
+.card{padding:16px;margin:0 4px 28px}
+.card h3{font-size:12px;margin-bottom:8px}
+.card p{margin:2px 0 12px;color:var(--muted);font-size:17px}
+.seg{display:flex;gap:12px;margin:8px 0 14px}
+.seg button{flex:1;border:0;background:var(--white);padding:12px 6px;font:400 10px/1.4 var(--px);box-shadow:var(--o)}
+.seg button.on{background:var(--pink)}
+.field{display:flex;gap:14px;margin-bottom:10px}
+.field input[type=text]{flex:1;min-width:0;border:0;background:var(--white);box-shadow:var(--o);padding:12px;font-size:18px;border-radius:0}
+.field .btn{flex:none;width:76px;margin:0}
+.stepper{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 4px 4px}
+.stepper b{font:400 18px var(--px)}
+.stepper button{width:52px;height:52px;border:0;background:var(--blue);box-shadow:var(--o),0 8px 0 0 var(--ink),inset 0 -4px 0 0 var(--blue2),inset 0 4px 0 0 rgba(255,255,255,.65);font:400 22px var(--px);color:var(--ink);margin-bottom:8px}
+.stepper button:active{transform:translateY(4px)}
+.prog{font-size:16px;color:var(--muted);margin-top:10px;min-height:22px}
+.bar{height:16px;background:var(--white);box-shadow:var(--o);margin:12px 4px 4px;display:none}
+.bar.on{display:block}
+.bar i{display:block;height:100%;background:var(--pink);width:0}
+
+/* tabs */
+#tabs{position:absolute;left:0;right:0;bottom:0;height:var(--tabh);z-index:2000;display:flex;background:var(--white);border-top:4px solid var(--ink);padding-bottom:env(safe-area-inset-bottom)}
+#tabs button{flex:1;border:0;background:none;color:var(--ink);font:400 10px var(--px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-transform:uppercase}
+#tabs button.on{background:var(--pink)}
+#tabs button+button{border-left:4px solid var(--ink)}
+
+/* viewer + toast */
+#viewer{position:fixed;inset:0;z-index:3000;background:rgba(27,22,48,.94);display:none;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+#viewer.on{display:flex}
+#vbody{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:18px}
+#vbody img{max-width:100%;max-height:100%;box-shadow:var(--o);background:var(--white);border:0}
+#vbody .audio{width:100%;max-width:420px;text-align:center;color:var(--white);display:flex;flex-direction:column;align-items:center;gap:18px}
+#vbody audio{width:100%}
+#vinfo{padding:16px 20px 24px;background:var(--white);border-top:4px solid var(--ink)}
+#vinfo .meta{font-size:16px;color:var(--muted);margin-bottom:10px}
+#vinfo input{width:100%;border:0;background:var(--ground);box-shadow:var(--o);padding:12px;font-size:18px;border-radius:0;margin:0 0 6px}
+#vinfo .row .btn{margin-bottom:8px}
+#toast{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top));transform:translate(-50%,-16px);background:var(--white);color:var(--ink);padding:12px 16px;font:400 17px/1.25 var(--body);box-shadow:var(--o),0 8px 0 0 var(--ink);opacity:0;pointer-events:none;z-index:4000;width:max-content;max-width:calc(100vw - 48px);text-align:center}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="pastel" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values=".311 1.046 .1056 0 -.463  .1665 .56 .0565 0 .217  .0276 .093 .0094 0 .87  0 0 0 1 0"/></filter></svg>
+<div id="app">
+  <div id="offline">OFFLINE: your journal works, and Go uses saved spots.</div>
+
+  <section class="view on" id="v-today">
+    <div class="mapbox" id="map"></div>
+    <div id="hud" class="box"><b id="hudL">WALKS 00</b><b id="hudR">0.0 KM</b></div>
+    <button class="btn ghost recenter" id="recenter" aria-label="Centre map on me"></button>
+    <div id="panel" class="box"></div>
+  </section>
+
+  <section class="view" id="v-journal">
+    <div class="mapbox" id="jmap"></div>
+    <div id="jlist"></div>
+  </section>
+
+  <section class="view" id="v-settings">
+    <div id="settings"></div>
+  </section>
+
+  <nav id="tabs">
+    <button data-tab="today" class="on" id="t-today"></button>
+    <button data-tab="journal" id="t-journal"></button>
+    <button data-tab="settings" id="t-settings"></button>
+  </nav>
+</div>
+
+<input type="file" id="camInput" accept="image/*" capture="environment" hidden>
+<input type="file" id="importInput" accept="application/json,.json" hidden>
+
+<div id="viewer">
+  <div id="vbody"></div>
+  <div id="vinfo">
+    <div class="meta" id="vmeta"></div>
+    <input id="vcap" type="text" placeholder="Add a caption (optional)" maxlength="140">
+    <div class="row"><button class="btn small ghost" id="vdel">Delete</button><button class="btn small" id="vclose">Done</button></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>/*LEAFLET_JS*/</script>
+<script>
+(() => {
+'use strict';
+
+/* ---------- tiny helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const pad = n => String(n).padStart(2, '0');
+const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtDist = m => m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m / 10) * 10 + ' m';
+const fmtDur = s => Math.floor(s / 60) + ':' + pad(Math.round(s % 60) % 60);
+let toastT;
+function toast(msg, ms = 2800) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms);
+}
+// Any hidden failure becomes visible, so a broken screen is never silent.
+window.addEventListener('error', e => toast('Error: ' + (e.message || 'something broke'), 6000));
+window.addEventListener('unhandledrejection', e => toast('Error: ' + ((e.reason && e.reason.message) || e.reason || 'something broke'), 6000));
+
+/* ---------- pixel art: ASCII bitmaps drawn as crisp SVG ---------- */
+const COL = { '#': 'currentColor', k: '#1b1630', p: '#ffc2d9', w: '#ffffff', b: '#a9d4ff' };
+function px(rows, scale = 2) {
+  const h = rows.length, w = rows[0].length, by = {};
+  rows.forEach((r, y) => {
+    for (let x = 0; x < w;) {
+      const c = r[x]; if (c === '.') { x++; continue; }
+      let n = 1; while (x + n < w && r[x + n] === c) n++;
+      (by[c] = by[c] || []).push(`M${x} ${y}h${n}v1h-${n}z`); x += n;
+    }
+  });
+  const paths = Object.keys(by).map(c => `<path d="${by[c].join('')}" fill="${COL[c]}"/>`).join('');
+  return `<svg class="i" width="${w * scale}" height="${h * scale}" viewBox="0 0 ${w} ${h}" shape-rendering="crispEdges">${paths}</svg>`;
+}
+const BM = {
+  cam: ['...####.....', '############', '############', '####....####', '###.####.###', '###.####.###', '####....####', '############', '############'],
+  mic: ['...###...', '..#####..', '..#####..', '..#####..', '#.#####.#', '#.#####.#', '.#.###.#.', '..#####..', '....#....', '..#####..'],
+  pin: ['..#####..', '.#######.', '###...###', '###...###', '###...###', '.#######.', '.#######.', '..#####..', '..#####..', '...###...', '...###...', '....#....'],
+  book: ['.#####..#####.', '#.....##.....#', '#.###.##.###.#', '#.....##.....#', '#.###.##.###.#', '#.....##.....#', '#.###.##.###.#', '.#####..#####.'],
+  sliders: ['......###..', '###########', '......###..', '...........', '..###......', '###########', '..###......', '...........', '.......###.', '###########', '.......###.'],
+  die: ['#########', '#.......#', '#.#...#.#', '#.......#', '#...#...#', '#.......#', '#.#...#.#', '#.......#', '#########'],
+  play: ['#......', '###....', '#####..', '#######', '#####..', '###....', '#......'],
+  cross: ['....#....', '....#....', '....#....', '....#....', '####.####', '....#....', '....#....', '....#....', '....#....'],
+  heart: ['.kkk.kkk.', 'kpwpkpppk', 'kpppppppk', 'kpppppppk', '.kpppppk.', '..kpppk..', '...kpk...', '....k....'],
+  flag: ['kkkkkkk..', 'kppppppk.', 'kpwppppk.', 'kppppppk.', 'kkkkkkk..', 'k........', 'k........', 'k........', 'k........', 'k........', 'kk.......', 'kkk......']
+};
+const ICON = {
+  cam: px(BM.cam, 3), mic: px(BM.mic, 3), pin: px(BM.pin), pinS: px(BM.pin, 1.5), book: px(BM.book), sliders: px(BM.sliders),
+  die: px(BM.die), play: px(BM.play, 2), cross: px(BM.cross), micS: px(BM.mic, 1.5), bookB: px(BM.book, 2)
+};
+
+/* ---------- storage (IndexedDB) ---------- */
+let db;
+function openDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('wander', 1);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      d.createObjectStore('walks', { keyPath: 'id' });
+      d.createObjectStore('media', { keyPath: 'id' }).createIndex('date', 'date');
+      d.createObjectStore('bank', { keyPath: 'id', autoIncrement: true });
+      d.createObjectStore('kv');
+    };
+    r.onsuccess = () => { db = r.result; res(); };
+    r.onerror = () => rej(r.error);
+  });
+}
+const tx = (store, mode, fn) => new Promise((res, rej) => {
+  const t = db.transaction(store, mode); const q = fn(t.objectStore(store));
+  t.oncomplete = () => res(q && q.result); t.onerror = t.onabort = () => rej(t.error);
+});
+const dbGet = (s, k) => tx(s, 'readonly', o => o.get(k));
+const dbAll = s => tx(s, 'readonly', o => o.getAll());
+const dbPut = (s, v, k) => tx(s, 'readwrite', o => k === undefined ? o.put(v) : o.put(v, k));
+const dbDel = (s, k) => tx(s, 'readwrite', o => o.delete(k));
+
+/* ---------- settings ---------- */
+const defaults = { pace: 5.5, startMode: 'gps', address: null };
+let settings = { ...defaults };
+const saveSettings = () => dbPut('kv', settings, 'settings');
+
+/* ---------- geo maths ---------- */
+const R = 6371000, rad = d => d * Math.PI / 180, deg = r => r * 180 / Math.PI;
+function hav(a, b) {
+  const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+function project(p, brg, d) {
+  const b = rad(brg), dr = d / R, la = rad(p.lat), lo = rad(p.lng);
+  const la2 = Math.asin(Math.sin(la) * Math.cos(dr) + Math.cos(la) * Math.sin(dr) * Math.cos(b));
+  const lo2 = lo + Math.atan2(Math.sin(b) * Math.sin(dr) * Math.cos(la), Math.cos(dr) - Math.sin(la) * Math.sin(la2));
+  return { lat: deg(la2), lng: deg(lo2) };
+}
+
+/* ---------- location ---------- */
+let pos = null, watchId = null;
+function startWatch() {
+  if (!navigator.geolocation || watchId != null) return;
+  watchId = navigator.geolocation.watchPosition(p => {
+    pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, ts: Date.now() };
+    onPos();
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 10000, timeout: 30000 });
+}
+function getPosOnce() {
+  return new Promise((res, rej) => {
+    if (!navigator.geolocation) return rej(new Error('This device has no location support.'));
+    navigator.geolocation.getCurrentPosition(
+      p => { pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, ts: Date.now() }; res(pos); },
+      e => rej(new Error(e.code === 1 ? 'Location is turned off for Wander. Allow it in your phone settings, or set a start address in Settings.' : 'Couldn’t get a location fix. Try again outside, or set a start address in Settings.')),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
+  });
+}
+async function getStart() {
+  if (settings.startMode === 'address' && settings.address) return { lat: settings.address.lat, lng: settings.address.lng };
+  if (pos && Date.now() - pos.ts < 120000) return { lat: pos.lat, lng: pos.lng };
+  const p = await getPosOnce(); return { lat: p.lat, lng: p.lng };
+}
+
+/* ---------- routing / Go ---------- */
+const TARGET_MIN = 15, TOL_MIN = 2.5, LOOSE_MIN = 5;
+const metersPerMin = () => settings.pace * 1000 / 60;
+
+async function route(a, b) {
+  const url = `https://routing.openstreetmap.de/routed-foot/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson`;
+  const ac = new AbortController(); const to = setTimeout(() => ac.abort(), 9000);
+  try {
+    const r = await fetch(url, { signal: ac.signal });
+    const j = await r.json();
+    if (j.code !== 'Ok' || !j.routes || !j.routes[0]) throw new Error('no route');
+    const rt = j.routes[0];
+    return {
+      dist: rt.distance,
+      coords: rt.geometry.coordinates.map(([x, y]) => [y, x]),
+      snapped: { lat: j.waypoints[1].location[1], lng: j.waypoints[1].location[0] }
+    };
+  } finally { clearTimeout(to); }
+}
+// Pick a random heading and adjust until the real walking route is ~15 min.
+async function genLive(start, { bearing = null, tries = 3, onTry = () => {} } = {}) {
+  const targetM = metersPerMin() * TARGET_MIN, tolM = metersPerMin() * TOL_MIN;
+  let best = null;
+  for (let b = 0; b < tries; b++) {
+    const brg = bearing == null ? Math.random() * 360 : (bearing + (b === 0 ? 0 : (b % 2 ? 1 : -1) * 35 * Math.ceil(b / 2)) + 360) % 360;
+    let straight = targetM / 1.35;
+    for (let i = 0; i < 4; i++) {
+      onTry();
+      const r = await route(start, project(start, brg, straight));
+      const err = Math.abs(r.dist - targetM);
+      if (!best || err < best.err) best = { ...r, err };
+      if (err <= tolM) return finalize(start, best);
+      straight *= clamp(targetM / Math.max(r.dist, 60), 0.4, 2.5);
+      await sleep(250);
+    }
+  }
+  if (best && best.err <= metersPerMin() * LOOSE_MIN) return finalize(start, best);
+  throw new Error('no good route found');
+}
+function finalize(start, r) {
+  return { start, dest: r.snapped, route: r.coords, distM: r.dist, durMin: r.dist / metersPerMin(), approx: false };
+}
+function straightLine(start) {
+  const targetM = metersPerMin() * TARGET_MIN;
+  const d = project(start, Math.random() * 360, targetM / 1.3);
+  return { start, dest: d, route: [[start.lat, start.lng], [d.lat, d.lng]], distM: targetM, durMin: TARGET_MIN, approx: true };
+}
+async function fromBank(start) {
+  const all = await dbAll('bank');
+  const ok = all.filter(b => hav(b.start, start) < 600 && Math.abs((b.pace || settings.pace) - settings.pace) <= 1);
+  if (!ok.length) return null;
+  const b = ok[Math.floor(Math.random() * ok.length)];
+  await dbDel('bank', b.id);
+  return { start, dest: b.dest, route: b.route, distM: b.distM, durMin: b.distM / metersPerMin(), approx: false, fromBank: true };
+}
+
+/* ---------- state ---------- */
+let today = null;            // today's walk record
+let busy = false;
+let recState = null;         // active voice recording
+let camPos = null;
+
+async function loadToday() { today = (await dbGet('walks', todayStr())) || null; }
+async function paintHud() {
+  const walks = await dbAll('walks');
+  const done = walks.filter(w => w.status === 'done');
+  const km = done.reduce((s, w) => s + w.distM * 2, 0) / 1000;
+  $('#hudL').textContent = 'WALKS ' + pad(done.length);
+  $('#hudR').textContent = km.toFixed(1) + ' KM';
+}
+
+/* ---------- maps ---------- */
+function mkMap(id) {
+  const m = L.map(id, { zoomControl: false, attributionControl: false, tap: true }).setView([43.6532, -79.3832], 15);
+  L.control.attribution({ position: 'topleft', prefix: false }).addTo(m);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18, maxNativeZoom: 17, minZoom: 10, className: 'paper-tiles', crossOrigin: true,
+    attribution: '© OpenStreetMap'
+  }).addTo(m);
+  return m;
+}
+const mkPin = (cls, label) => L.divIcon({ className: '', html: `<div class="pin ${cls}">${label}</div>`, iconSize: [34, 34], iconAnchor: [17, 46] });
+const flagIcon = L.divIcon({ className: '', html: px(BM.flag, 3), iconSize: [27, 36], iconAnchor: [3, 36] });
+const meIcon = L.divIcon({ className: '', html: `<div class="me">${px(BM.heart, 3)}</div>`, iconSize: [27, 24], iconAnchor: [13, 12] });
+
+let tmap, tLayer, meMarker, centered = false;
+const panelH = () => ($('#panel') ? $('#panel').offsetHeight : 0) + 28;
+function focusOn(ll, zoom) {
+  const z = zoom || tmap.getZoom(), p = tmap.project(ll, z); p.y += panelH() / 2 - 30;
+  tmap.setView(tmap.unproject(p, z), z, { animate: false });
+}
+function initTodayMap() {
+  tmap = mkMap('map');
+  tLayer = L.layerGroup().addTo(tmap);
+  meMarker = L.marker([0, 0], { icon: meIcon, interactive: false, zIndexOffset: 1000 });
+  $('#recenter').onclick = () => { if (pos) focusOn([pos.lat, pos.lng], Math.max(tmap.getZoom(), 16)); else fitToday(); };
+}
+function onPos() {
+  if (!tmap) return;
+  if (!tmap.hasLayer(meMarker)) meMarker.addTo(tmap);
+  meMarker.setLatLng([pos.lat, pos.lng]);
+  if (!centered && !today) { centered = true; focusOn([pos.lat, pos.lng], 16); }
+  if (today && today.status === 'active') updateDistLine();
+}
+function fitToday() {
+  if (!today) return;
+  const pts = [[today.start.lat, today.start.lng], [today.dest.lat, today.dest.lng], ...today.route];
+  tmap.invalidateSize();
+  tmap.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [40, 90], paddingBottomRight: [40, panelH() + 50], maxZoom: 17 });
+}
+const trail = (layer, coords, weight, dash) => {
+  L.polyline(coords, { color: '#ffc2d9', weight: weight + 8, opacity: 1, lineCap: 'butt', lineJoin: 'miter' }).addTo(layer);
+  L.polyline(coords, { color: '#1b1630', weight, opacity: 1, dashArray: dash, lineCap: 'butt', lineJoin: 'miter' }).addTo(layer);
+};
+async function paintToday(fit) {
+  tLayer.clearLayers();
+  if (!today) return;
+  trail(tLayer, today.route, 4, today.approx ? '4 12' : '8 8');
+  L.marker([today.start.lat, today.start.lng], { icon: mkPin('blue', 'S') }).addTo(tLayer);
+  L.marker([today.dest.lat, today.dest.lng], { icon: flagIcon }).addTo(tLayer);
+  const media = (await dbAll('media')).filter(m => m.date === todayStr() && m.lat != null);
+  for (const m of media) L.marker([m.lat, m.lng], { icon: mkPin(m.type === 'photo' ? '' : 'voice', m.type === 'photo' ? 'P' : 'V'), interactive: false }).addTo(tLayer);
+  if (fit) fitToday();
+}
+
+/* ---------- Today panel ---------- */
+function mapsUrl(p) {
+  const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return ios ? `https://maps.apple.com/?daddr=${p.lat},${p.lng}&dirflg=w`
+             : `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=walking`;
+}
+const captureRow = () => `
+  <div class="capture">
+    <button class="round" id="camBtn"><b>${ICON.cam}</b>Photo</button>
+    <button class="round mic" id="micBtn"><b>${ICON.mic}</b>Voice note</button>
+  </div>`;
+
+function renderPanel() {
+  const p = $('#panel');
+  const rec = `<div id="recbar" class="${recState ? 'on' : ''}"><span class="dot"></span><span class="t" id="rect">${recState ? fmtDur(recState.secs) : '0:00'}</span><button id="recstop">STOP</button></div>`;
+  if (!today) {
+    const from = settings.startMode === 'address' && settings.address ? settings.address.label : 'My location';
+    p.innerHTML = `
+      <h1>Ready to wander?</h1>
+      <p class="sub">15 min out, 15 min back.</p>
+      <button class="go" id="goBtn" ${busy ? 'disabled' : ''}>${busy ? esc(busy) : 'GO!'}</button>
+      ${busy ? '' : '<div class="start">PRESS START</div><br>'}
+      <button class="chip" id="fromChip">${ICON.pinS}<span>Start: ${esc(from)}</span></button>`;
+    $('#goBtn').onclick = doGo;
+    $('#fromChip').onclick = () => showTab('settings');
+  } else {
+    const w = today, dist = fmtDist(w.distM);
+    const approxNote = w.approx ? `<div class="note warn">Offline estimate. The path may not follow real streets.</div>` : '';
+    if (w.status === 'planned') {
+      p.innerHTML = `
+        <h1>Quest found!</h1>
+        <div class="big">${dist}<small>about ${Math.round(w.durMin)} min each way</small></div>
+        <div class="note">${w.fromBank ? 'Picked from your prepared spots.' : 'Follow the pink trail to the flag.'}</div>
+        ${approxNote}
+        <div class="row"><button class="btn" id="startBtn" ${busy ? 'disabled' : ''}>START WALK</button></div>
+        <div class="row"><button class="btn ghost small" id="rerollBtn" ${busy ? 'disabled' : ''}>${ICON.die} ${busy ? 'ROLLING' : 'RE-ROLL'}</button><a class="btn blue small" target="_blank" rel="noopener" href="${mapsUrl(w.dest)}">${ICON.pinS} MAPS</a></div>`;
+      $('#startBtn').onclick = startWalk;
+      $('#rerollBtn').onclick = doGo;
+    } else if (w.status === 'active') {
+      p.innerHTML = `
+        ${rec}
+        <h1>Walking out</h1>
+        <div class="big" id="togo">…</div>
+        ${captureRow()}
+        <div class="row"><button class="btn" id="hereBtn">I’M HERE</button><a class="btn blue" target="_blank" rel="noopener" href="${mapsUrl(w.dest)}">${ICON.pinS} MAPS</a></div>`;
+      $('#hereBtn').onclick = arrived;
+      updateDistLine();
+    } else if (w.status === 'arrived') {
+      p.innerHTML = `
+        ${rec}
+        <h1>Checkpoint!</h1>
+        <div class="note">You made it. Take it in, then head back, about ${Math.round(w.durMin)} min.</div>
+        ${captureRow()}
+        <div class="row"><button class="btn" id="endBtn">END WALK</button><a class="btn blue" target="_blank" rel="noopener" href="${mapsUrl(w.start)}">${ICON.pinS} WAY BACK</a></div>`;
+      $('#endBtn').onclick = endWalk;
+    } else {
+      const mins = w.startedAt && w.endedAt ? Math.max(1, Math.round((w.endedAt - w.startedAt) / 60000)) : Math.round(w.durMin * 2);
+      p.innerHTML = `
+        <h1>Quest clear!</h1>
+        <p class="sub">${fmtDist(w.distM * 2)} round trip, ${mins} min. See you tomorrow.</p>
+        <div class="row"><button class="btn" id="jBtn">${ICON.bookB} SEE JOURNAL</button></div>`;
+      $('#jBtn').onclick = () => { journalDay = todayStr(); showTab('journal'); };
+    }
+  }
+  const cb = $('#camBtn'); if (cb) cb.onclick = openCamera;
+  const mb = $('#micBtn'); if (mb) mb.onclick = toggleRec;
+  const rs = $('#recstop'); if (rs) rs.onclick = toggleRec;
+  setTimeout(() => tmap && tmap.invalidateSize(), 50);
+}
+function updateDistLine() {
+  const el = $('#togo'); if (!el || !today) return;
+  if (!pos) { el.innerHTML = 'Finding you…'; return; }
+  const d = hav(pos, today.dest);
+  el.innerHTML = d < 40 ? 'You’re here!' : `${fmtDist(d).toUpperCase()}<small>to go, as the crow flies</small>`;
+}
+
+async function doGo() {
+  if (busy || (today && today.status !== 'planned')) return;
+  busy = 'FINDING YOUR SPOT'; renderPanel();
+  try {
+    const start = await getStart();
+    let res = null;
+    if (navigator.onLine) {
+      let n = 0;
+      try { res = await genLive(start, { onTry: () => { n++; const b = $('#goBtn'); if (b) b.textContent = 'CHECKING ROUTE ' + n; } }); }
+      catch (e) { console.warn('live routing failed', e); }
+    }
+    if (!res) res = await fromBank(start);
+    if (!res) res = straightLine(start);
+    today = { id: todayStr(), date: todayStr(), status: 'planned', startedAt: null, arrivedAt: null, endedAt: null, ...res };
+    await dbPut('walks', today);
+    busy = false; renderPanel(); await paintToday(true);
+  } catch (e) {
+    busy = false; renderPanel(); toast(e.message || 'Something went wrong. Try again.', 4500);
+  }
+}
+async function setStatus(status, field) {
+  today.status = status; if (field) today[field] = Date.now();
+  await dbPut('walks', today); renderPanel(); await paintToday(false); paintHud();
+}
+async function startWalk() { await setStatus('active', 'startedAt'); startWatch(); if (pos) focusOn([pos.lat, pos.lng], 16); }
+async function arrived() { await setStatus('arrived', 'arrivedAt'); toast('Checkpoint reached!'); }
+async function endWalk() { await setStatus('done', 'endedAt'); toast('Walk saved to your journal.'); }
+
+/* ---------- photos ---------- */
+function openCamera() {
+  camPos = pos ? { lat: pos.lat, lng: pos.lng } : null;
+  const i = $('#camInput'); i.value = ''; i.click();
+}
+async function shrink(file, max, q) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image(); img.src = url; await img.decode();
+    const s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.round(img.naturalWidth * s), h = Math.round(img.naturalHeight * s);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(img, 0, 0, w, h);
+    return await new Promise(r => c.toBlob(r, 'image/jpeg', q));
+  } finally { URL.revokeObjectURL(url); }
+}
+async function onPhoto(e) {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  try {
+    const [blob, thumb] = await Promise.all([shrink(f, 1600, .82), shrink(f, 260, .72)]);
+    const p = camPos || (pos && { lat: pos.lat, lng: pos.lng });
+    await addMedia({ type: 'photo', blob, thumb, p });
+    toast(p ? 'Photo saved to the map.' : 'Photo saved (no location fix yet).');
+  } catch (err) { console.error(err); toast('Couldn’t save that photo.', 4000); }
+}
+async function addMedia({ type, blob, thumb = null, dur = null, mime = null, p }) {
+  const m = { id: uid(), type, date: todayStr(), walkId: today ? today.id : null, ts: Date.now(), lat: p ? p.lat : null, lng: p ? p.lng : null, blob, thumb, dur, mime, caption: '' };
+  await dbPut('media', m);
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  if (today) paintToday(false);
+}
+
+/* ---------- voice notes ---------- */
+const MAX_REC = 120;
+async function toggleRec() {
+  if (recState) { recState.stop(); return; }
+  if (!navigator.mediaDevices || !window.MediaRecorder) { toast('Voice recording isn’t supported on this browser.', 4000); return; }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch { toast('Microphone is blocked. Allow it in your phone settings.', 4500); return; }
+  const mime = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'].find(t => MediaRecorder.isTypeSupported(t)) || '';
+  const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
+  const chunks = []; const p = pos ? { lat: pos.lat, lng: pos.lng } : null;
+  let lock = null;
+  try { lock = navigator.wakeLock && await navigator.wakeLock.request('screen'); } catch {}
+  const st = { secs: 0, timer: null, stop() { if (mr.state !== 'inactive') mr.stop(); } };
+  mr.ondataavailable = ev => ev.data && ev.data.size && chunks.push(ev.data);
+  mr.onstop = async () => {
+    clearInterval(st.timer); stream.getTracks().forEach(t => t.stop()); if (lock) lock.release().catch(() => {});
+    const type = mr.mimeType || mime || 'audio/mp4'; const secs = st.secs; recState = null;
+    renderPanel();
+    if (chunks.length) { await addMedia({ type: 'voice', blob: new Blob(chunks, { type }), dur: secs, mime: type, p }); toast('Voice note saved.'); }
+  };
+  recState = st; mr.start(1000); renderPanel();
+  st.timer = setInterval(() => {
+    st.secs++; const t = $('#rect'); if (t) t.textContent = fmtDur(st.secs);
+    if (st.secs >= MAX_REC) st.stop();
+  }, 1000);
+}
+
+/* ---------- viewer ---------- */
+let viewing = null, viewerUrl = null;
+function openViewer(m) {
+  viewing = m;
+  if (viewerUrl) URL.revokeObjectURL(viewerUrl);
+  viewerUrl = URL.createObjectURL(m.blob);
+  $('#vbody').innerHTML = m.type === 'photo'
+    ? `<img src="${viewerUrl}" alt="">`
+    : `<div class="audio">${px(BM.mic, 6)}<audio controls src="${viewerUrl}"></audio></div>`;
+  const when = new Date(m.ts).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  $('#vmeta').textContent = when + (m.type === 'voice' && m.dur ? ' · ' + fmtDur(m.dur) : '') + (m.lat == null ? ' · no location' : '');
+  $('#vcap').value = m.caption || '';
+  $('#viewer').classList.add('on');
+}
+async function closeViewer() {
+  if (viewing) {
+    const cap = $('#vcap').value.trim();
+    if (cap !== (viewing.caption || '')) { viewing.caption = cap; await dbPut('media', viewing); }
+  }
+  $('#viewer').classList.remove('on'); $('#vbody').innerHTML = '';
+  if (viewerUrl) { URL.revokeObjectURL(viewerUrl); viewerUrl = null; }
+  viewing = null;
+  if ($('#v-journal').classList.contains('on')) renderJournal();
+}
+async function delViewing() {
+  if (!viewing || !confirm('Delete this ' + (viewing.type === 'photo' ? 'photo' : 'voice note') + '?')) return;
+  await dbDel('media', viewing.id); viewing = null; await closeViewer();
+  if (today) paintToday(false);
+}
+
+/* ---------- journal ---------- */
+let jmap, jLayer, journalDay = null, jUrls = [];
+function initJournalMap() { jmap = mkMap('jmap'); jLayer = L.layerGroup().addTo(jmap); }
+function pairUp(list) {
+  const photos = list.filter(m => m.type === 'photo'), used = new Set(), out = [];
+  const voices = list.filter(m => m.type === 'voice');
+  const pairOf = new Map();
+  for (const v of voices) {
+    const ph = photos.filter(p => !used.has(p.id) && Math.abs(p.ts - v.ts) <= 60000).sort((a, b) => Math.abs(a.ts - v.ts) - Math.abs(b.ts - v.ts))[0];
+    if (ph) { used.add(ph.id); used.add(v.id); pairOf.set(ph.id, v); }
+  }
+  for (const m of list) {
+    if (m.type === 'voice' && used.has(m.id)) continue;
+    out.push({ m, voice: pairOf.get(m.id) || null });
+  }
+  return out;
+}
+async function renderJournal() {
+  jUrls.forEach(u => URL.revokeObjectURL(u)); jUrls = [];
+  const [walks, media] = await Promise.all([dbAll('walks'), dbAll('media')]);
+  const dates = [...new Set([...walks.map(w => w.date), ...media.map(m => m.date)])].sort().reverse();
+  const box = $('#jlist');
+  if (!dates.length) {
+    box.innerHTML = `<div class="empty box"><h3>No save files yet</h3><p>Take a walk, snap a few photos, and they’ll show up on the map and here.</p></div>`;
+    paintJournalMap(walks, media); return;
+  }
+  box.innerHTML = `<button class="btn ghost small clearfilter ${journalDay ? 'on' : ''}" id="clrDay">SHOW ALL DAYS</button>`;
+  const url = b => { const u = URL.createObjectURL(b); jUrls.push(u); return u; };
+  for (const d of dates) {
+    const w = walks.find(x => x.date === d);
+    const ms = media.filter(m => m.date === d).sort((a, b) => a.ts - b.ts);
+    const dt = new Date(d + 'T12:00:00');
+    const stats = w ? fmtDist(w.distM * 2) + (w.startedAt && w.endedAt ? ' · ' + Math.max(1, Math.round((w.endedAt - w.startedAt) / 60000)) + ' min' : '') : `${ms.length} item${ms.length === 1 ? '' : 's'}`;
+    const card = document.createElement('div'); card.className = 'day box' + (journalDay === d ? ' sel' : '');
+    card.innerHTML = `<button class="dayhead" data-day="${d}"><h3>${esc(dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase())}</h3><span>${esc(stats)}</span></button><div class="items"></div>`;
+    const items = $('.items', card);
+    for (const { m, voice } of pairUp(ms)) {
+      const it = document.createElement('div'); it.className = 'item' + (voice ? ' pair' : '');
+      if (m.type === 'photo') it.innerHTML = `<button class="thumb" data-id="${m.id}"><img src="${url(m.thumb || m.blob)}" alt=""></button>`;
+      else it.innerHTML = `<button class="vchip" data-id="${m.id}">${ICON.play} ${fmtDur(m.dur || 0)}</button>`;
+      if (voice) it.innerHTML += `<button class="vchip" data-id="${voice.id}">${ICON.micS} ${fmtDur(voice.dur || 0)}</button>`;
+      const caps = [m.caption, voice && voice.caption].filter(Boolean).join(' · ');
+      if (caps) it.innerHTML += `<div class="cap">${esc(caps)}</div>`;
+      items.appendChild(it);
+    }
+    if (!ms.length) items.innerHTML = `<div class="cap" style="width:auto">No photos or notes this day.</div>`;
+    box.appendChild(card);
+  }
+  const byId = new Map(media.map(m => [m.id, m]));
+  box.onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.id === 'clrDay') { journalDay = null; renderJournal(); return; }
+    if (b.dataset.day) { journalDay = journalDay === b.dataset.day ? null : b.dataset.day; renderJournal(); return; }
+    if (b.dataset.id) openViewer(byId.get(b.dataset.id));
+  };
+  paintJournalMap(walks, media, url, byId);
+}
+function paintJournalMap(walks, media, url, byId) {
+  jLayer.clearLayers(); const pts = [];
+  const sel = journalDay;
+  for (const w of walks) {
+    if (sel && w.date !== sel) continue;
+    trail(jLayer, w.route, sel ? 4 : 3, '8 8');
+    if (sel) {
+      L.marker([w.start.lat, w.start.lng], { icon: mkPin('blue', 'S'), interactive: false }).addTo(jLayer);
+      L.marker([w.dest.lat, w.dest.lng], { icon: flagIcon, interactive: false }).addTo(jLayer);
+    }
+    pts.push(...w.route);
+  }
+  for (const m of media) {
+    if (m.lat == null || (sel && m.date !== sel)) continue;
+    const inner = m.type === 'photo' && url ? `<img src="${url(m.thumb || m.blob)}" alt="">` : px(BM.mic, 1.5);
+    const mk = L.marker([m.lat, m.lng], { icon: L.divIcon({ className: '', html: `<div class="pin ${m.type === 'photo' ? 'photo' : 'voice'}">${inner}</div>`, iconSize: [34, 34], iconAnchor: [17, 46] }) });
+    mk.on('click', () => byId && openViewer(byId.get(m.id)));
+    mk.addTo(jLayer); pts.push([m.lat, m.lng]);
+  }
+  setTimeout(() => {
+    jmap.invalidateSize();
+    if (pts.length) jmap.fitBounds(L.latLngBounds(pts), { padding: [50, 50], maxZoom: 17 });
+    else if (pos) jmap.setView([pos.lat, pos.lng], 15);
+  }, 60);
+}
+
+/* ---------- settings screen ---------- */
+async function tileCount() { try { return (await (await caches.open('wander-tiles')).keys()).length; } catch { return 0; } }
+async function renderSettings() {
+  const n = await tileCount(), bank = (await dbAll('bank')).length;
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  $('#settings').innerHTML = `
+    <h2>Options</h2>
+    <div class="card box"><h3>START POINT</h3>
+      <div class="seg"><button data-mode="gps" class="${settings.startMode === 'gps' ? 'on' : ''}">MY LOCATION</button><button data-mode="address" class="${settings.startMode === 'address' ? 'on' : ''}">AN ADDRESS</button></div>
+      <div class="field"><input id="addr" type="text" placeholder="e.g. 100 Queen St W" value="${esc(settings.address ? settings.address.query : '')}"><button class="btn small" id="addrGo">SET</button></div>
+      <p id="addrNote">${settings.address ? 'Saved: ' + esc(settings.address.label) : 'Needs internet the first time. After that the address is remembered offline.'}</p>
+    </div>
+    <div class="card box"><h3>WALKING PACE</h3><p>Turns distance into minutes. Fifteen minutes each way stays fixed.</p>
+      <div class="stepper"><button id="paceM" aria-label="Slower">-</button><b id="paceV">${settings.pace.toFixed(1)} KM/H</b><button id="paceP" aria-label="Faster">+</button></div>
+    </div>
+    <div class="card box"><h3>PLAY OFFLINE</h3>
+      <p>On Wi-Fi, save the map around your start point (about 3 km, ~20 MB) and prepare two weeks of ready-to-go spots. After that, Go works with no signal.</p>
+      <div class="row" style="margin-top:0"><button class="btn small" id="saveArea">SAVE MAP</button><button class="btn blue small" id="prepBank">2 WEEKS</button></div>
+      <div class="bar" id="bar"><i></i></div><div class="prog" id="prog">${n} map tiles saved · ${bank} spot${bank === 1 ? '' : 's'} ready</div>
+    </div>
+    <div class="card box"><h3>BACK UP</h3><p>Your photos live only on this phone. Save a backup file now and then, especially before changing phones.</p>
+      <div class="row" style="margin-top:0"><button class="btn ghost small" id="exp">EXPORT</button><button class="btn ghost small" id="imp">IMPORT</button></div>
+    </div>
+    ${standalone ? '' : `<div class="card box"><h3>INSTALL</h3><p>iPhone: tap Share, then Add to Home Screen. Android: menu, then Install app. Installed apps keep their photos safe and open instantly.</p></div>`}
+    <p style="text-align:center;color:var(--muted);font-size:15px;margin:0 4px">Map data © OpenStreetMap contributors</p>
+  `;
+  $('#settings').querySelectorAll('.seg button').forEach(b => b.onclick = async () => {
+    if (b.dataset.mode === 'address' && !settings.address) { toast('Enter an address and tap Set first.'); return; }
+    settings.startMode = b.dataset.mode; await saveSettings(); renderSettings();
+  });
+  $('#addrGo').onclick = setAddress;
+  $('#addr').onkeydown = e => { if (e.key === 'Enter') setAddress(); };
+  const pace = d => async () => { settings.pace = clamp(Math.round((settings.pace + d) * 10) / 10, 3.5, 7.5); await saveSettings(); $('#paceV').textContent = settings.pace.toFixed(1) + ' KM/H'; };
+  $('#paceM').onclick = pace(-0.5); $('#paceP').onclick = pace(0.5);
+  $('#saveArea').onclick = saveArea; $('#prepBank').onclick = prepBank;
+  $('#exp').onclick = exportAll; $('#imp').onclick = () => $('#importInput').click();
+}
+async function setAddress() {
+  const q = $('#addr').value.trim(); if (!q) return;
+  if (!navigator.onLine) { toast('Needs internet to look up a new address.'); return; }
+  $('#addrGo').disabled = true;
+  try {
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q));
+    const j = await r.json();
+    if (!j.length) { toast('Couldn’t find that address. Try adding the city.', 4000); return; }
+    settings.address = { query: q, lat: +j[0].lat, lng: +j[0].lon, label: j[0].display_name.split(',').slice(0, 3).join(',') };
+    settings.startMode = 'address'; await saveSettings(); toast('Starting from that address.'); renderSettings();
+  } catch { toast('Address lookup failed. Check your connection.', 4000); }
+  finally { const b = $('#addrGo'); if (b) b.disabled = false; }
+}
+function setProg(text, frac) {
+  const p = $('#prog'); if (p) p.textContent = text;
+  const bar = $('#bar'); if (bar) { bar.classList.toggle('on', frac != null); if (frac != null) $('i', bar).style.width = Math.round(frac * 100) + '%'; }
+}
+const tileXY = (lat, lng, z) => { const n = 2 ** z; return [Math.floor((lng + 180) / 360 * n), Math.floor((1 - Math.log(Math.tan(rad(lat)) + 1 / Math.cos(rad(lat))) / Math.PI) / 2 * n)]; };
+function tilesAround(c, rKm, zs) {
+  const out = [];
+  for (const z of zs) {
+    const dLat = rKm / 111.32, dLng = rKm / (111.32 * Math.cos(rad(c.lat)));
+    const [x0, y1] = tileXY(c.lat - dLat, c.lng - dLng, z), [x1, y0] = tileXY(c.lat + dLat, c.lng + dLng, z);
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) out.push(`https://tile.openstreetmap.org/${z}/${x}/${y}.png`);
+  }
+  return out;
+}
+let saving = false;
+async function saveArea() {
+  if (saving) return;
+  if (!navigator.onLine) { toast('Connect to Wi-Fi first.'); return; }
+  saving = true; $('#saveArea').disabled = true;
+  try {
+    const c = await getStart(); const urls = tilesAround(c, 3, [13, 14, 15, 16, 17]);
+    const cache = await caches.open('wander-tiles'); let done = 0, fail = 0, i = 0;
+    const worker = async () => {
+      while (i < urls.length) {
+        const u = urls[i++];
+        try { if (!(await cache.match(u))) { const r = await fetch(u, { mode: 'cors', credentials: 'omit' }); if (r.ok) await cache.put(u, r); else fail++; } }
+        catch { fail++; }
+        done++; if (done % 10 === 0) setProg(`Saving map… ${done} / ${urls.length}`, done / urls.length);
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    setProg(fail > urls.length * .1 ? `Saved most of the map (${fail} tiles failed). Try again on better Wi-Fi.` : 'Map area saved.', null);
+    toast(fail > urls.length * .1 ? 'Some tiles failed. Try again.' : 'Map saved for offline use.');
+  } catch (e) { toast(e.message || 'Couldn’t save the map.', 4000); }
+  finally { saving = false; renderSettings(); }
+}
+let prepping = false;
+async function prepBank() {
+  if (prepping) return;
+  if (!navigator.onLine) { toast('Connect to Wi-Fi first.'); return; }
+  prepping = true; $('#prepBank').disabled = true;
+  try {
+    const start = await getStart();
+    const have = (await dbAll('bank')).filter(b => hav(b.start, start) < 600 && Math.abs((b.pace || settings.pace) - settings.pace) <= 1).length;
+    const need = Math.max(0, 14 - have); let made = 0;
+    for (let k = 0; k < need; k++) {
+      setProg(`Preparing spots… ${made} / ${need}`, made / need);
+      try {
+        const r = await genLive(start, { bearing: (k * 360 / need + Math.random() * 20) % 360, tries: 2 });
+        await dbPut('bank', { start, dest: r.dest, route: r.route, distM: r.distM, pace: settings.pace, created: Date.now() }); made++;
+      } catch (e) { console.warn(e); }
+      await sleep(400);
+    }
+    toast(made ? `${made} spot${made === 1 ? '' : 's'} ready for offline.` : need ? 'Couldn’t reach the route service. Try again.' : 'You already have two weeks ready.');
+  } catch (e) { toast(e.message || 'Couldn’t prepare spots.', 4000); }
+  finally { prepping = false; renderSettings(); }
+}
+
+/* ---------- backup ---------- */
+const b2d = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
+const d2b = d => fetch(d).then(r => r.blob());
+async function exportAll() {
+  try {
+    const [walks, media] = await Promise.all([dbAll('walks'), dbAll('media')]);
+    const parts = ['{"v":1,"settings":', JSON.stringify(settings), ',"walks":', JSON.stringify(walks), ',"media":['];
+    for (let i = 0; i < media.length; i++) {
+      const m = media[i];
+      parts.push((i ? ',' : '') + JSON.stringify({ ...m, blob: await b2d(m.blob), thumb: m.thumb ? await b2d(m.thumb) : null }));
+    }
+    parts.push(']}');
+    const file = new File(parts, `wander-backup-${todayStr()}.json`, { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: 'Wander backup' }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    toast('Backup saved.');
+  } catch (e) { console.error(e); toast('Couldn’t create the backup.', 4000); }
+}
+async function importAll(e) {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text()); if (!j || !j.media || !j.walks) throw new Error('bad file');
+    for (const w of j.walks) await dbPut('walks', w);
+    for (const m of j.media) await dbPut('media', { ...m, blob: await d2b(m.blob), thumb: m.thumb ? await d2b(m.thumb) : null });
+    await loadToday(); renderPanel(); paintToday(false); paintHud();
+    toast(`Imported ${j.walks.length} walks and ${j.media.length} items.`);
+  } catch { toast('That doesn’t look like a Wander backup.', 4000); }
+}
+
+/* ---------- tabs ---------- */
+function showTab(t) {
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + t));
+  try {
+    if (t === 'today') { setTimeout(() => { tmap.invalidateSize(); if (today) fitToday(); }, 50); paintHud(); }
+    if (t === 'journal') { if (!jmap) initJournalMap(); renderJournal().catch(fail('Journal')); }
+    if (t === 'settings') renderSettings().catch(fail('Options'));
+  } catch (e) { fail(t)(e); }
+}
+const fail = name => e => { console.error(e); toast(name + ' error: ' + (e && e.message ? e.message : e), 7000); };
+
+/* ---------- boot ---------- */
+async function boot() {
+  await openDB();
+  const s = await dbGet('kv', 'settings'); settings = { ...defaults, ...(s || {}) };
+  await loadToday();
+  $('#t-today').innerHTML = ICON.pin + 'Today';
+  $('#t-journal').innerHTML = ICON.book + 'Journal';
+  $('#t-settings').innerHTML = ICON.sliders + 'Options';
+  $('#recenter').innerHTML = ICON.cross;
+  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+  initTodayMap();
+  $('#camInput').onchange = onPhoto; $('#importInput').onchange = importAll;
+  $('#vclose').onclick = closeViewer; $('#vdel').onclick = delViewing;
+  $('#vcap').onkeydown = e => { if (e.key === 'Enter') e.target.blur(); };
+  const setOnline = () => $('#offline').classList.toggle('on', !navigator.onLine);
+  addEventListener('online', setOnline); addEventListener('offline', setOnline); setOnline();
+  renderPanel(); paintHud(); await paintToday(true);
+  startWatch();
+  document.addEventListener('visibilitychange', async () => {
+    if (document.hidden) return;
+    startWatch();
+    const t = await dbGet('walks', todayStr());
+    if ((t && t.id) !== (today && today.id)) { today = t || null; renderPanel(); paintToday(true); paintHud(); }
+  });
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+  window.__wander = { get today() { return today; } };   // handy for debugging
+}
+boot().catch(e => { console.error(e); document.body.innerHTML = '<p style="padding:24px;font-family:sans-serif">Wander couldn’t start: ' + esc(e.message) + '</p>'; });
+})();
+</script>
+</body>
+</html>
