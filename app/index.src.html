@@ -75,8 +75,6 @@ svg.i{display:block;flex:none;color:inherit;image-rendering:pixelated}
 .pin.photo{background:var(--white);padding:0;overflow:visible}
 .pin.photo img{width:34px;height:34px;object-fit:cover;display:block}
 .pin.voice{background:var(--blue)}
-.me{width:27px;height:24px;animation:bob 1s steps(2) infinite}
-@keyframes bob{50%{transform:translateY(-3px)}}
 
 /* today */
 #map{inset:0}
@@ -161,6 +159,36 @@ svg.i{display:block;flex:none;color:inherit;image-rendering:pixelated}
 .bar.on{display:block}
 .bar i{display:block;height:100%;background:var(--pink);width:0}
 
+/* character sprite on the map (4-frame walk cycle, mirrored by heading) */
+.walker{position:relative}
+.walker .wbody{position:relative;width:39px;height:63px}
+.walker.flip .wbody{transform:scaleX(-1)}
+.walker .wf{position:absolute;left:0;top:0;visibility:hidden}
+.walker:not(.walk) .wf.s{visibility:visible}
+.walker.walk .wf.f0{animation:wf .6s step-end infinite}
+.walker.walk .wf.f1{animation:wf .6s step-end .15s infinite}
+.walker.walk .wf.f2{animation:wf .6s step-end .3s infinite}
+.walker.walk .wf.f3{animation:wf .6s step-end .45s infinite}
+@keyframes wf{0%{visibility:visible}25%{visibility:hidden}100%{visibility:hidden}}
+/* progress strip while walking */
+.pstrip{margin:4px 4px 8px}
+.ptrack{position:relative;height:16px;background:var(--white);box-shadow:var(--o);margin:42px 14px 4px}
+.ptrack i{display:block;height:100%;background:var(--pink);width:0}
+#pwalk{position:absolute;left:0;bottom:9px;transform:translateX(-50%);line-height:0}
+#pwalk.back svg{transform:scaleX(-1)}
+/* character creator */
+#cstage{position:relative;height:236px;margin:8px 4px 18px;box-shadow:var(--o);background:var(--blue);overflow:hidden}
+#cstage::after{content:"";position:absolute;left:0;right:0;bottom:0;height:34px;background:var(--pink);border-top:4px solid var(--ink)}
+#cprev{position:absolute;left:50%;bottom:30px;transform:translateX(-50%);z-index:1;line-height:0}
+.seg.parts{gap:6px}
+.seg.parts button{padding:12px 2px;font-size:9px}
+.swatches{display:flex;flex-wrap:wrap;gap:12px;margin:6px 4px 18px}
+.sw{width:34px;height:34px;border:0;padding:0;box-shadow:var(--o)}
+.sw.on{box-shadow:var(--o),inset 0 0 0 4px var(--white),inset 0 0 0 8px var(--ink)}
+.wheelrow{display:flex;gap:16px;align-items:flex-start;margin:0 4px}
+#wheel{width:192px;height:192px;flex:none;image-rendering:pixelated;touch-action:none;cursor:crosshair}
+.hexcol{flex:1;min-width:0}
+.hexcol .sw.cur{display:block;width:100%;height:56px;margin:16px 0 0}
 /* entries + entry form */
 .jhead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:4px 4px 22px}
 #jlist .jhead h2{margin:0}
@@ -352,7 +380,7 @@ const dbPut = (s, v, k) => tx(s, 'readwrite', o => k === undefined ? o.put(v) : 
 const dbDel = (s, k) => tx(s, 'readwrite', o => o.delete(k));
 
 /* ---------- settings ---------- */
-const defaults = { pace: 5.5, startMode: 'gps', address: null, name: '' };
+const defaults = { pace: 5.5, startMode: 'gps', address: null, name: '', character: null };
 let settings = { ...defaults };
 const saveSettings = () => dbPut('kv', settings, 'settings');
 
@@ -477,27 +505,28 @@ function mkMap(id) {
 }
 const mkPin = (cls, label) => L.divIcon({ className: '', html: `<div class="pin ${cls}">${label}</div>`, iconSize: [34, 34], iconAnchor: [17, 46] });
 const flagIcon = L.divIcon({ className: '', html: px(BM.flag, 3), iconSize: [27, 36], iconAnchor: [3, 36] });
-const meIcon = L.divIcon({ className: '', html: `<div class="me">${px(BM.heart, 3)}</div>`, iconSize: [27, 24], iconAnchor: [13, 12] });
 
 let tmap, tLayer, meMarker, centered = false;
 const panelH = () => ($('#panel') ? $('#panel').offsetHeight : 0) + 28;
-function focusOn(ll, zoom) {
+function focusOn(ll, zoom, animate) {
   const z = zoom || tmap.getZoom(), p = tmap.project(ll, z); p.y += panelH() / 2 - 30;
-  tmap.setView(tmap.unproject(p, z), z, { animate: false });
+  tmap.setView(tmap.unproject(p, z), z, { animate: !!animate });
 }
 function initTodayMap() {
   tmap = mkMap('map');
   tLayer = L.layerGroup().addTo(tmap);
-  meMarker = L.marker([0, 0], { icon: meIcon, interactive: false, zIndexOffset: 1000 });
-  $('#recenter').onclick = () => { if (pos) focusOn([pos.lat, pos.lng], Math.max(tmap.getZoom(), 16)); else fitToday(); };
+  meMarker = L.marker([0, 0], { icon: charIcon(), interactive: false, zIndexOffset: 1000 });
+  tmap.on('dragstart', () => { followMe = false; });
+  $('#recenter').onclick = () => { followMe = true; if (pos) focusOn([pos.lat, pos.lng], Math.max(tmap.getZoom(), 16)); else fitToday(); };
 }
 function onPos() {
   if (!tmap) return;
-  if (!tmap.hasLayer(meMarker)) meMarker.addTo(tmap);
-  meMarker.setLatLng([pos.lat, pos.lng]);
-  if (bmap) { if (!bmap.hasLayer(bMe)) bMe.addTo(bmap); bMe.setLatLng([pos.lat, pos.lng]); }
+  const first = !tmap.hasLayer(meMarker);
+  if (first) meMarker.addTo(tmap);
+  if (bmap && !bmap.hasLayer(bMe)) bMe.addTo(bmap);
+  charTarget(pos, first);
   if (!centered && !today) { centered = true; focusOn([pos.lat, pos.lng], 16); }
-  if (today && today.status === 'active') updateDistLine();
+  if (today && (today.status === 'active' || today.status === 'arrived')) updateDistLine();
 }
 function fitToday() {
   if (!today) return;
@@ -563,6 +592,7 @@ function renderPanel() {
         ${rec}
         <h1>Walking out</h1>
         <div class="big" id="togo">…</div>
+        ${stripHtml(false)}
         ${captureRow()}
         <div class="row"><button class="btn" id="hereBtn">I’M HERE</button><a class="btn blue" target="_blank" rel="noopener" href="${mapsUrl(w.dest)}">${ICON.pinS} MAPS</a></div>`;
       $('#hereBtn').onclick = arrived;
@@ -572,9 +602,10 @@ function renderPanel() {
         ${rec}
         <h1>Checkpoint!</h1>
         <div class="note">You made it. Take it in, then head back, about ${Math.round(w.durMin)} min.</div>
+        ${stripHtml(true)}
         ${captureRow()}
         <div class="row"><button class="btn" id="endBtn">END WALK</button><a class="btn blue" target="_blank" rel="noopener" href="${mapsUrl(w.start)}">${ICON.pinS} WAY BACK</a></div>`;
-      $('#endBtn').onclick = endWalk;
+      $('#endBtn').onclick = endWalk; updateStrip();
     } else {
       const mins = w.startedAt && w.endedAt ? Math.max(1, Math.round((w.endedAt - w.startedAt) / 60000)) : Math.round(w.durMin * 2);
       p.innerHTML = `
@@ -590,10 +621,38 @@ function renderPanel() {
   setTimeout(() => tmap && tmap.invalidateSize(), 50);
 }
 function updateDistLine() {
-  const el = $('#togo'); if (!el || !today) return;
-  if (!pos) { el.innerHTML = 'Finding you…'; return; }
-  const d = hav(pos, today.dest);
-  el.innerHTML = d < 40 ? 'You’re here!' : `${fmtDist(d).toUpperCase()}<small>to go, as the crow flies</small>`;
+  if (!today) return;
+  const el = $('#togo');
+  if (el) {
+    if (!pos) el.innerHTML = 'Finding you…';
+    else { const d = hav(pos, today.dest); el.innerHTML = d < 40 ? 'You’re here!' : `${fmtDist(d).toUpperCase()}<small>to go, as the crow flies</small>`; }
+  }
+  updateStrip();
+}
+// How far along the walking route she is (nearest point on the polyline), for the progress strip.
+function routeProgress(p) {
+  const r = today.route, k = Math.cos(rad(p.lat)) * 111320, m = 111320;
+  const px_ = p.lng * k, py_ = p.lat * m;
+  let best = { d: Infinity, along: 0 }, acc = 0;
+  for (let i = 0; i < r.length - 1; i++) {
+    const ax = r[i][1] * k, ay = r[i][0] * m, bx = r[i + 1][1] * k, by = r[i + 1][0] * m;
+    const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy, len = Math.sqrt(len2);
+    const t = len2 ? clamp(((px_ - ax) * dx + (py_ - ay) * dy) / len2, 0, 1) : 0;
+    const d = Math.hypot(px_ - (ax + t * dx), py_ - (ay + t * dy));
+    if (d < best.d) best = { d, along: acc + t * len };
+    acc += len;
+  }
+  return { along: best.along, total: acc || 1, off: best.d };
+}
+const stripHtml = back => `<div class="pstrip"><div class="ptrack"><i id="pfill"></i><span id="pwalk" class="${back ? 'back' : ''}">${spriteSVG(settings.character, -1, 2)}</span></div><div class="prog" id="pline" style="text-align:center;margin-top:8px">Finding you…</div></div>`;
+function updateStrip() {
+  const line = $('#pline'); if (!line || !today) return;
+  if (!pos) { line.textContent = 'Finding you…'; return; }
+  const back = today.status === 'arrived', rp = routeProgress(pos);
+  if (rp.off > 250) { line.textContent = 'Off the trail. ' + fmtDist(hav(pos, back ? today.start : today.dest)) + ' to the ' + (back ? 'start.' : 'flag.'); return; }
+  const frac = clamp(back ? 1 - rp.along / rp.total : rp.along / rp.total, 0, 1), rem = back ? rp.along : rp.total - rp.along;
+  $('#pfill').style.width = Math.round(frac * 100) + '%'; $('#pwalk').style.left = Math.round(frac * 100) + '%';
+  line.textContent = `${fmtDist(rem)} left · ${Math.max(1, Math.round(rem / metersPerMin()))} min ${back ? 'back' : 'to go'}`;
 }
 
 async function doGo() {
@@ -620,9 +679,9 @@ async function setStatus(status, field) {
   today.status = status; if (field) today[field] = Date.now();
   await dbPut('walks', today); renderPanel(); await paintToday(false); paintHud();
 }
-async function startWalk() { await setStatus('active', 'startedAt'); startWatch(); if (pos) focusOn([pos.lat, pos.lng], 16); }
-async function arrived() { await setStatus('arrived', 'arrivedAt'); toast('Checkpoint reached!'); }
-async function endWalk() { await setStatus('done', 'endedAt'); toast('Walk saved to your journal.'); }
+async function startWalk() { followMe = true; await setStatus('active', 'startedAt'); startWatch(); if (pos) focusOn([pos.lat, pos.lng], 16); setWalkerState(); }
+async function arrived() { await setStatus('arrived', 'arrivedAt'); setWalkerState(); toast('Checkpoint reached!'); }
+async function endWalk() { await setStatus('done', 'endedAt'); setWalkerState(); toast('Walk saved to your journal.'); }
 
 /* ---------- photos ---------- */
 function openCamera() {
@@ -953,8 +1012,8 @@ let bmap, bLayer, bMe, bUrls = [], bSeq = 0;
 let mapFilter = { mode: 'all', day: null, from: null, to: null };
 function initBigMap() {
   bmap = mkMap('bmap'); bLayer = L.layerGroup().addTo(bmap);
-  bMe = L.marker([0, 0], { icon: meIcon, interactive: false, zIndexOffset: 1000 });
-  if (pos) bMe.setLatLng([pos.lat, pos.lng]).addTo(bmap);
+  bMe = L.marker([0, 0], { icon: charIcon(), interactive: false, zIndexOffset: 1000 });
+  if (cs.lat != null) { bMe.setLatLng([cs.lat, cs.lng]).addTo(bmap); setWalkerState(); }
   $('#recenter2').onclick = () => { if (pos) bmap.setView([pos.lat, pos.lng], Math.max(bmap.getZoom(), 16)); else toast('Still finding you…'); };
   const bar = $('#mapbar');
   bar.onclick = e => {
@@ -1024,6 +1083,214 @@ async function paintMap() {
   }, 60);
 }
 
+/* ---------- character: layered pixel sprite, recoloured per part ---------- */
+const INK = '#1b1630';
+const DEF_CHAR = { skin: '#f7c9a3', hairStyle: 1, hair: '#5a3b2a', shirt: '#ffc2d9', outfit: 'pants', bottom: '#7fbcf5', shoes: '#ffffff' };
+const HAIR_STYLES = ['SHORT', 'LONG', 'TAIL', 'BUN'], OUTFITS = ['pants', 'skirt', 'dress'];
+const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const rgbHex = (r, g, b) => '#' + [r, g, b].map(v => clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0')).join('');
+const shade = (h, f) => { const [r, g, b] = hexRgb(h); return rgbHex(r * f, g * f, b * f); };
+const SPR_W = 13, SPR_H = 21;
+// frame 0-3 = walk cycle, -1 = standing. Faces right; the map mirrors it for left.
+function spriteGrid(c, frame) {
+  const g = Array.from({ length: SPR_H }, () => Array(SPR_W).fill(null));
+  const P = (x, y, w, h, col) => { for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (i >= 0 && i < SPR_W && j >= 0 && j < SPR_H) g[j][i] = col; };
+  const walking = frame >= 0, bob = walking && frame % 2 ? -1 : 0, arm = walking ? [1, 0, -1, 0][frame] : 0;
+  const dress = c.outfit === 'dress', skirt = c.outfit === 'skirt';
+  const topCol = dress ? c.bottom : c.shirt, legCol = c.outfit === 'pants' ? c.bottom : c.skin;
+  // hair that sits behind the body
+  if (c.hairStyle === 1) P(3, 6 + bob, 2, 9, c.hair);
+  if (c.hairStyle === 2) { P(2, 5 + bob, 2, 2, c.hair); P(1, 7 + bob, 2, 3, c.hair); }
+  // far arm
+  P(6 - arm, 10 + bob, 2, 2, shade(c.shirt, .75)); P(6 - arm, 12 + bob, 2, 2, shade(c.skin, .85));
+  // legs
+  const legs = walking ? [[{ c: 6, o: 2 }, { c: 6, o: -2 }], [{ c: 6, o: 0 }, { c: 7, o: 0 }], [{ c: 6, o: -2 }, { c: 6, o: 2 }], [{ c: 6, o: 0 }, { c: 5, o: 0 }]][frame] : [{ c: 5, o: 0 }, { c: 7, o: 0 }];
+  const hip = 14 + bob;
+  const leg = (L, col, shoe) => {
+    for (let y = hip; y < 20; y++) {
+      const x = L.c + (y >= 18 ? L.o : y >= 16 ? L.o / 2 : 0);
+      if (y >= 18) { P(x, y, 2, 1, shoe); if (y === 19) P(x + 2, y, 1, 1, shoe); } else P(x, y, 2, 1, col);
+    }
+  };
+  leg(legs[1], shade(legCol, .8), shade(c.shoes, .82)); leg(legs[0], legCol, c.shoes);
+  // body
+  P(5, 10 + bob, 5, 4, topCol);
+  if (skirt || dress) { P(4, 13 + bob, 7, 1, c.bottom); P(3, 14 + bob, 9, 2, c.bottom); }
+  P(7 + arm, 10 + bob, 2, 2, shade(c.shirt, .92)); P(7 + arm, 12 + bob, 2, 2, c.skin);
+  // head, face, hair
+  P(4, 4 + bob, 7, 6, c.skin);
+  P(5, 3 + bob, 5, 1, c.hair); P(4, 4 + bob, 7, 2, c.hair); P(4, 6 + bob, 2, 2, c.hair);
+  P(9, 6 + bob, 1, 1, INK); P(9, 7 + bob, 1, 1, '#ff9dc0');
+  if (c.hairStyle === 3) P(6, 2 + bob, 3, 2, c.hair);
+  // 1px black outline around everything
+  const o = g.map(r => r.slice());
+  for (let y = 0; y < SPR_H; y++) for (let x = 0; x < SPR_W; x++) {
+    if (g[y][x]) continue;
+    if ((y > 0 && g[y - 1][x]) || (y < SPR_H - 1 && g[y + 1][x]) || (x > 0 && g[y][x - 1]) || (x < SPR_W - 1 && g[y][x + 1])) o[y][x] = INK;
+  }
+  return o;
+}
+const sprCache = new Map();
+function spriteSVG(c, frame, scale) {
+  const key = JSON.stringify(c) + frame + 'x' + scale;
+  if (sprCache.has(key)) return sprCache.get(key);
+  const g = spriteGrid(c, frame), by = {};
+  g.forEach((row, y) => {
+    for (let x = 0; x < SPR_W;) {
+      const col = row[x]; if (!col) { x++; continue; }
+      let n = 1; while (x + n < SPR_W && row[x + n] === col) n++;
+      (by[col] = by[col] || []).push(`M${x} ${y}h${n}v1h-${n}z`); x += n;
+    }
+  });
+  const svg = `<svg class="i spr" width="${SPR_W * scale}" height="${SPR_H * scale}" viewBox="0 0 ${SPR_W} ${SPR_H}" shape-rendering="crispEdges">${Object.keys(by).map(k => `<path d="${by[k].join('')}" fill="${k}"/>`).join('')}</svg>`;
+  if (sprCache.size > 300) sprCache.clear();
+  sprCache.set(key, svg); return svg;
+}
+const charIcon = () => L.divIcon({
+  className: '', iconSize: [SPR_W * 3, SPR_H * 3], iconAnchor: [SPR_W * 3 / 2, SPR_H * 3 - 3],
+  html: `<div class="walker"><div class="wbody"><span class="wf s">${spriteSVG(settings.character, -1, 3)}</span>${[0, 1, 2, 3].map(f => `<span class="wf f${f}">${spriteSVG(settings.character, f, 3)}</span>`).join('')}</div></div>`
+});
+
+/* ---------- character on the map: smoothing, heading, walk/stand ---------- */
+const cs = { lat: null, lng: null, tlat: null, tlng: null, raf: 0, t0: 0, face: true, last: null, lastMove: 0 };
+let followMe = true;
+function placeChar() {
+  const ll = [cs.lat, cs.lng];
+  if (meMarker) meMarker.setLatLng(ll);
+  if (bMe) bMe.setLatLng(ll);
+}
+function setWalkerState() {
+  // animate only while a walk is on and she has actually moved lately; otherwise a static pose
+  const walking = !!today && (today.status === 'active' || today.status === 'arrived') && Date.now() - cs.lastMove < 9000;
+  for (const m of [meMarker, bMe]) {
+    const el = m && m.getElement && m.getElement(), w = el && el.querySelector('.walker');
+    if (w) { w.classList.toggle('walk', walking); w.classList.toggle('flip', !cs.face); }
+  }
+}
+function refreshCharMarkers() {
+  if (meMarker) meMarker.setIcon(charIcon());
+  if (bMe) bMe.setIcon(charIcon());
+  setWalkerState();
+}
+function charTarget(p, snap) {
+  if (cs.lat != null && p.acc > 150) return;                   // ignore very rough fixes
+  if (cs.last) {
+    if (hav(cs.last, p) > 4) {                                  // moved: update heading
+      const dx = (p.lng - cs.last.lng) * Math.cos(rad(p.lat)), dy = p.lat - cs.last.lat, n = Math.hypot(dx, dy);
+      if (n && Math.abs(dx / n) > 0.3) cs.face = dx > 0;
+      cs.lastMove = Date.now(); cs.last = { lat: p.lat, lng: p.lng };
+    }
+  } else cs.last = { lat: p.lat, lng: p.lng };
+  cs.tlat = p.lat; cs.tlng = p.lng;
+  if (snap || cs.lat == null) { cs.lat = p.lat; cs.lng = p.lng; placeChar(); }
+  else if (!cs.raf) { cs.t0 = performance.now(); cs.raf = requestAnimationFrame(stepChar); }
+  setWalkerState();
+}
+function stepChar(now) {
+  const k = 1 - Math.exp(-Math.min(100, now - cs.t0) / 450); cs.t0 = now;   // glide toward the newest GPS fix
+  cs.lat += (cs.tlat - cs.lat) * k; cs.lng += (cs.tlng - cs.lng) * k;
+  placeChar(); followCam();
+  if (hav({ lat: cs.lat, lng: cs.lng }, { lat: cs.tlat, lng: cs.tlng }) < 0.3) { cs.lat = cs.tlat; cs.lng = cs.tlng; placeChar(); cs.raf = 0; return; }
+  cs.raf = requestAnimationFrame(stepChar);
+}
+function followCam() {   // keep her in view on Today during a walk, unless she has dragged the map away
+  if (!followMe || !tmap || !today || (today.status !== 'active' && today.status !== 'arrived') || !$('#v-today').classList.contains('on')) return;
+  const pt = tmap.latLngToContainerPoint([cs.lat, cs.lng]), sz = tmap.getSize();
+  if (pt.x < 70 || pt.x > sz.x - 70 || pt.y < 110 || pt.y > sz.y - panelH() - 30) focusOn([cs.lat, cs.lng], tmap.getZoom(), true);
+}
+
+/* ---------- character creator (Profile) ---------- */
+const SWATCH = {
+  skin: ['#ffe3cf', '#f7c9a3', '#e2a97e', '#bd7f55', '#8d5a3a', '#5e3b27'],
+  hair: ['#1b1630', '#5a3b2a', '#a56a3a', '#e6c25e', '#ff9dc0', '#7fbcf5', '#c7a6ff', '#f2f2f6'],
+  shirt: ['#ffc2d9', '#a9d4ff', '#ffffff', '#fff1a8', '#bfeac4', '#d9c2ff', '#ff9dc0', '#1b1630'],
+  bottom: ['#7fbcf5', '#ffc2d9', '#1b1630', '#ffffff', '#8d6b4a', '#bfeac4', '#d9c2ff', '#ff9dc0'],
+  shoes: ['#ffffff', '#1b1630', '#ff9dc0', '#7fbcf5', '#e6c25e', '#8d6b4a']
+};
+const PARTS = ['skin', 'hair', 'shirt', 'bottom', 'shoes'];
+let cPart = 'skin', pickHSV = { h: 0, s: 0, v: 1 }, prevT = null, prevF = 0;
+function hsv2hex(h, s, v) { const f = n => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); }; return rgbHex(f(5) * 255, f(3) * 255, f(1) * 255); }
+function hex2hsv(hex) {
+  const [r, g, b] = hexRgb(hex).map(v => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; let h = 0;
+  if (d) { h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; }
+  return { h, s: mx ? d / mx : 0, v: mx };
+}
+// pixel colour wheel: a 48x48 canvas shown at 4x, so the ring and square are chunky pixels
+const WN = 48, W_IN = 16.5, W_OUT = 23.5, SQ = 11;
+function drawWheel(cv, hsv) {
+  const f = Array.from({ length: WN }, () => Array(WN).fill(null));
+  for (let y = 0; y < WN; y++) for (let x = 0; x < WN; x++) {
+    const dx = x + .5 - WN / 2, dy = y + .5 - WN / 2, r = Math.hypot(dx, dy);
+    if (r >= W_IN && r <= W_OUT) f[y][x] = hsv2hex((Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360, 1, 1);
+    else if (Math.abs(dx) <= SQ && Math.abs(dy) <= SQ) f[y][x] = hsv2hex(hsv.h, (dx + SQ) / (2 * SQ), 1 - (dy + SQ) / (2 * SQ));
+  }
+  const o = f.map(r => r.slice());
+  for (let y = 0; y < WN; y++) for (let x = 0; x < WN; x++) if (!f[y][x] && ((y && f[y - 1][x]) || (y < WN - 1 && f[y + 1][x]) || (x && f[y][x - 1]) || (x < WN - 1 && f[y][x + 1]))) o[y][x] = INK;
+  const cur = (cx, cy) => { for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) { const X = Math.round(cx) + i, Y = Math.round(cy) + j; if (X >= 0 && X < WN && Y >= 0 && Y < WN) o[Y][X] = Math.abs(i) === 2 || Math.abs(j) === 2 ? INK : '#ffffff'; } };
+  const a = hsv.h * Math.PI / 180, rm = (W_IN + W_OUT) / 2;
+  cur(WN / 2 + Math.cos(a) * rm, WN / 2 + Math.sin(a) * rm);
+  cur(WN / 2 - SQ + hsv.s * 2 * SQ, WN / 2 - SQ + (1 - hsv.v) * 2 * SQ);
+  const ctx = cv.getContext('2d'), im = ctx.createImageData(WN, WN);
+  for (let y = 0; y < WN; y++) for (let x = 0; x < WN; x++) { const c = o[y][x], i = (y * WN + x) * 4; if (c) { const [r, g, b] = hexRgb(c); im.data[i] = r; im.data[i + 1] = g; im.data[i + 2] = b; im.data[i + 3] = 255; } }
+  ctx.putImageData(im, 0, 0);
+}
+function paintPreview() { const el = $('#cprev'); if (el) el.innerHTML = spriteSVG(settings.character, prevF, 8); }
+function startPreview() {
+  clearInterval(prevT); prevF = 0; paintPreview();
+  prevT = setInterval(() => {
+    if (!$('#cprev') || !$('#v-profile').classList.contains('on')) { clearInterval(prevT); return; }
+    prevF = (prevF + 1) % 4; paintPreview();
+  }, 170);
+}
+function commitChar() { saveSettings(); refreshCharMarkers(); }
+function setPartColor(hex, commit, fromHex) {
+  settings.character[cPart] = hex; paintPreview();
+  const h = $('#hex'); if (h && !fromHex) h.value = hex;   // don't rewrite the field while she is typing in it
+  const cs_ = $('#curSw'); if (cs_) cs_.style.background = hex;
+  document.querySelectorAll('#cedit .swatches .sw').forEach(b => b.classList.toggle('on', b.dataset.c === hex));
+  if (commit) commitChar();
+}
+function paintCEdit() {
+  const c = settings.character, box = $('#cedit');
+  const label = { skin: 'SKIN', hair: 'HAIR', shirt: 'SHIRT', bottom: c.outfit.toUpperCase(), shoes: 'SHOES' };
+  pickHSV = hex2hsv(c[cPart]);
+  box.innerHTML = `
+    <div class="seg parts">${PARTS.map(p => `<button data-part="${p}" class="${p === cPart ? 'on' : ''}">${label[p]}</button>`).join('')}</div>
+    ${cPart === 'hair' ? `<div class="seg">${HAIR_STYLES.map((n, i) => `<button data-style="${i}" class="${c.hairStyle === i ? 'on' : ''}">${n}</button>`).join('')}</div>` : ''}
+    ${cPart === 'bottom' ? `<div class="seg">${OUTFITS.map(o => `<button data-outfit="${o}" class="${c.outfit === o ? 'on' : ''}">${o.toUpperCase()}</button>`).join('')}</div>` : ''}
+    <div class="swatches">${SWATCH[cPart].map(h => `<button class="sw ${h === c[cPart] ? 'on' : ''}" data-c="${h}" style="background:${h}" aria-label="Colour ${h}"></button>`).join('')}</div>
+    <div class="wheelrow"><canvas id="wheel" width="${WN}" height="${WN}" aria-label="Colour wheel"></canvas>
+      <div class="hexcol"><input id="hex" class="fin" type="text" maxlength="7" autocapitalize="off" autocomplete="off" spellcheck="false" value="${c[cPart]}" aria-label="Hex colour"><div class="sw cur" id="curSw" style="background:${c[cPart]}"></div></div></div>`;
+  const cv = $('#wheel'); drawWheel(cv, pickHSV);
+  let drag = null;
+  const apply = e => {
+    const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * WN - WN / 2, y = (e.clientY - r.top) / r.height * WN - WN / 2;
+    if (drag === 'ring') pickHSV.h = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+    else { pickHSV.s = clamp((x + SQ) / (2 * SQ), 0, 1); pickHSV.v = 1 - clamp((y + SQ) / (2 * SQ), 0, 1); }
+    drawWheel(cv, pickHSV); setPartColor(hsv2hex(pickHSV.h, pickHSV.s, pickHSV.v), false);
+  };
+  cv.onpointerdown = e => {
+    const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * WN - WN / 2, y = (e.clientY - r.top) / r.height * WN - WN / 2;
+    drag = Math.hypot(x, y) >= W_IN - 1 ? 'ring' : 'sq'; cv.setPointerCapture(e.pointerId); apply(e); e.preventDefault();
+  };
+  cv.onpointermove = e => { if (drag) apply(e); };
+  cv.onpointerup = cv.onpointercancel = () => { if (drag) { drag = null; commitChar(); } };
+  $('#hex').oninput = e => {
+    let v = e.target.value.trim(); if (v && v[0] !== '#') v = '#' + v;
+    if (/^#[0-9a-fA-F]{6}$/.test(v)) { v = v.toLowerCase(); pickHSV = hex2hsv(v); drawWheel(cv, pickHSV); setPartColor(v, true, true); }
+  };
+}
+function initCEdit() {
+  $('#cedit').onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const c = settings.character;
+    if (b.dataset.part) { cPart = b.dataset.part; paintCEdit(); }
+    else if (b.dataset.style) { c.hairStyle = +b.dataset.style; paintPreview(); commitChar(); paintCEdit(); }
+    else if (b.dataset.outfit) { c.outfit = b.dataset.outfit; paintPreview(); commitChar(); paintCEdit(); }
+    else if (b.dataset.c) { pickHSV = hex2hsv(b.dataset.c); drawWheel($('#wheel'), pickHSV); setPartColor(b.dataset.c, true); }
+  };
+}
+
 /* ---------- profile screen (name, character, settings) ---------- */
 async function tileCount() { try { return (await (await caches.open('wander-tiles')).keys()).length; } catch { return 0; } }
 async function renderProfile() {
@@ -1034,7 +1301,10 @@ async function renderProfile() {
     <div class="card box"><h3>YOUR NAME</h3>
       <div class="field" style="margin-bottom:0"><input id="pname" type="text" maxlength="20" placeholder="What should we call you?" value="${esc(settings.name)}"></div>
     </div>
-    <div class="card box"><h3>YOUR CHARACTER</h3><p>Your pixel character will live here. Coming up next.</p></div>
+    <div class="card box"><h3>YOUR CHARACTER</h3>
+      <div id="cstage"><div id="cprev"></div></div>
+      <div id="cedit"></div>
+    </div>
     <div class="card box"><h3>START POINT</h3>
       <div class="seg"><button data-mode="gps" class="${settings.startMode === 'gps' ? 'on' : ''}">MY LOCATION</button><button data-mode="address" class="${settings.startMode === 'address' ? 'on' : ''}">AN ADDRESS</button></div>
       <div class="field"><input id="addr" type="text" placeholder="e.g. 100 Queen St W" value="${esc(settings.address ? settings.address.query : '')}"><button class="btn small" id="addrGo">SET</button></div>
@@ -1054,8 +1324,9 @@ async function renderProfile() {
     ${standalone ? '' : `<div class="card box"><h3>INSTALL</h3><p>iPhone: tap Share, then Add to Home Screen. Android: menu, then Install app. Installed apps keep their photos safe and open instantly.</p></div>`}
     <p style="text-align:center;color:var(--muted);font-size:15px;margin:0 4px">Map data © OpenStreetMap contributors</p>
   `;
+  initCEdit(); paintCEdit(); startPreview();
   $('#pname').oninput = e => { settings.name = e.target.value.trim(); saveSettings(); };
-  $('#profile').querySelectorAll('.seg button').forEach(b => b.onclick = async () => {
+  $('#profile').querySelectorAll('.seg button[data-mode]').forEach(b => b.onclick = async () => {
     if (b.dataset.mode === 'address' && !settings.address) { toast('Enter an address and tap Set first.'); return; }
     settings.startMode = b.dataset.mode; await saveSettings(); renderProfile();
   });
@@ -1163,6 +1434,7 @@ async function importAll(e) {
   try {
     const j = JSON.parse(await f.text()); if (!j || !j.media || !j.walks) throw new Error('bad file');
     for (const w of j.walks) await dbPut('walks', w);
+    if (j.settings && j.settings.character) { settings.character = { ...DEF_CHAR, ...j.settings.character }; if (j.settings.name) settings.name = j.settings.name; await saveSettings(); refreshCharMarkers(); }
     for (const en of (j.entries || [])) await dbPut('entries', en);
     for (const m of j.media) await dbPut('media', { ...m, blob: await d2b(m.blob), thumb: m.thumb ? await d2b(m.thumb) : null });
     await loadToday(); renderPanel(); refreshViews(); paintHud();
@@ -1187,6 +1459,7 @@ const fail = name => e => { console.error(e); toast(name + ' error: ' + (e && e.
 async function boot() {
   await openDB();
   const s = await dbGet('kv', 'settings'); settings = { ...defaults, ...(s || {}) };
+  settings.character = { ...DEF_CHAR, ...(settings.character || {}) };
   await loadToday();
   $('#t-today').innerHTML = ICON.pin + 'Today';
   $('#t-journal').innerHTML = ICON.book + 'Journal';
@@ -1206,7 +1479,7 @@ async function boot() {
   const setOnline = () => $('#offline').classList.toggle('on', !navigator.onLine);
   addEventListener('online', setOnline); addEventListener('offline', setOnline); setOnline();
   renderPanel(); paintHud(); await paintToday(true);
-  startWatch();
+  startWatch(); setInterval(setWalkerState, 2000);
   document.addEventListener('visibilitychange', async () => {
     if (document.hidden) return;
     startWatch();
