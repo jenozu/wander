@@ -100,6 +100,21 @@ svg.i{display:block;flex:none;color:inherit;image-rendering:pixelated}
 .chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .big{font:400 26px/1.2 var(--px);margin:4px 0 4px}
 .big small{display:block;font:400 18px/1.3 var(--body);color:var(--muted);margin-top:6px}
+.wlen{display:flex;justify-content:center;align-items:center;gap:10px;margin:0 0 6px}
+.step{width:50px;height:50px;border:0;background:var(--blue);box-shadow:var(--o);font:400 26px/1 var(--px);color:var(--ink);padding:0}
+.step:active{background:var(--pink)}
+.wmin{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--white);box-shadow:var(--o);height:50px;min-width:140px;padding:0 12px}
+.wmin input{width:3ch;border:0;background:transparent;font:400 26px var(--px);color:var(--ink);text-align:center;padding:0;border-radius:0;-moz-appearance:textfield;appearance:textfield}
+.wmin input::-webkit-outer-spin-button,.wmin input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.wmin span{font:400 13px var(--px)}
+.chip.tiny{font-size:13px;padding:5px 10px;background:var(--white);margin:2px 0 0}
+.destin{width:100%;font:400 18px var(--body);padding:10px 12px;border:0;background:var(--white);box-shadow:var(--o);color:var(--ink);margin:2px 0 10px;border-radius:0;-webkit-appearance:none}
+.sugs{display:flex;flex-direction:column;gap:8px;max-height:min(40vh,300px);overflow:auto;margin:0 0 8px;padding:3px}
+.sug{border:0;background:var(--white);box-shadow:var(--o);padding:8px 10px;text-align:left;font:400 17px/1.15 var(--body);color:var(--ink);display:block;width:100%}
+.sug small{display:block;color:var(--muted);font-size:14px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sug:active{background:var(--pink)}
+.sug.rec b::before{content:'\2605 ';color:var(--pink2)}
+.dest{font-size:18px;margin:0 0 6px}
 .note{font-size:16px;color:var(--muted);margin:2px 0 8px}
 .note.warn{color:var(--ink);background:var(--pink);padding:6px 8px;box-shadow:var(--o)}
 .capture{display:flex;justify-content:center;gap:28px;margin:12px 0 10px}
@@ -389,7 +404,7 @@ const dbPut = (s, v, k) => tx(s, 'readwrite', o => k === undefined ? o.put(v) : 
 const dbDel = (s, k) => tx(s, 'readwrite', o => o.delete(k));
 
 /* ---------- settings ---------- */
-const defaults = { pace: 5.5, startMode: 'gps', address: null, name: '', character: null };
+const defaults = { pace: 5.5, startMode: 'gps', address: null, name: '', character: null, recent: [], walkMin: 30 };
 let settings = { ...defaults };
 const saveSettings = () => dbPut('kv', settings, 'settings');
 
@@ -432,7 +447,12 @@ async function getStart() {
 }
 
 /* ---------- routing / Go ---------- */
-const TARGET_MIN = 15, TOL_MIN = 2.5, LOOSE_MIN = 5;
+// Walk time is the whole out-and-back trip, in minutes (she sets it on the GO! screen); each way is half.
+const WALK_MIN = { lo: 10, hi: 120, step: 5 };
+const totalMin = () => clamp(Math.round(+settings.walkMin || 30), WALK_MIN.lo, WALK_MIN.hi);
+const eachMin = () => totalMin() / 2;
+const fmtMin = x => Number.isInteger(x) ? String(x) : x.toFixed(1);
+const walkedOf = w => w.walkedM != null ? w.walkedM : w.distM * 2;
 const metersPerMin = () => settings.pace * 1000 / 60;
 
 async function route(a, b) {
@@ -450,9 +470,9 @@ async function route(a, b) {
     };
   } finally { clearTimeout(to); }
 }
-// Pick a random heading and adjust until the real walking route is ~15 min.
+// Pick a random heading and adjust until the real walking route is about the chosen time each way.
 async function genLive(start, { bearing = null, tries = 3, onTry = () => {} } = {}) {
-  const targetM = metersPerMin() * TARGET_MIN, tolM = metersPerMin() * TOL_MIN;
+  const targetM = metersPerMin() * eachMin(), tolM = metersPerMin() * eachMin() / 6;
   let best = null;
   for (let b = 0; b < tries; b++) {
     const brg = bearing == null ? Math.random() * 360 : (bearing + (b === 0 ? 0 : (b % 2 ? 1 : -1) * 35 * Math.ceil(b / 2)) + 360) % 360;
@@ -467,20 +487,20 @@ async function genLive(start, { bearing = null, tries = 3, onTry = () => {} } = 
       await sleep(250);
     }
   }
-  if (best && best.err <= metersPerMin() * LOOSE_MIN) return finalize(start, best);
+  if (best && best.err <= metersPerMin() * eachMin() / 3) return finalize(start, best);
   throw new Error('no good route found');
 }
 function finalize(start, r) {
   return { start, dest: r.snapped, route: r.coords, distM: r.dist, durMin: r.dist / metersPerMin(), approx: false };
 }
 function straightLine(start) {
-  const targetM = metersPerMin() * TARGET_MIN;
+  const targetM = metersPerMin() * eachMin();
   const d = project(start, Math.random() * 360, targetM / 1.3);
-  return { start, dest: d, route: [[start.lat, start.lng], [d.lat, d.lng]], distM: targetM, durMin: TARGET_MIN, approx: true };
+  return { start, dest: d, route: [[start.lat, start.lng], [d.lat, d.lng]], distM: targetM, durMin: eachMin(), approx: true };
 }
 async function fromBank(start) {
   const all = await dbAll('bank');
-  const ok = all.filter(b => hav(b.start, start) < 600 && Math.abs((b.pace || settings.pace) - settings.pace) <= 1);
+  const ok = all.filter(b => hav(b.start, start) < 600 && Math.abs((b.pace || settings.pace) - settings.pace) <= 1 && (b.walkMin || 30) === totalMin());
   if (!ok.length) return null;
   const b = ok[Math.floor(Math.random() * ok.length)];
   await dbDel('bank', b.id);
@@ -493,11 +513,16 @@ let busy = false;
 let recState = null;         // active voice recording
 let camPosP = null;         // GPS fix being fetched while the camera is open
 
-async function loadToday() { today = (await dbGet('walks', todayStr())) || null; }
+const pickCurrent = ws => ws.filter(w => w.date === todayStr() && w.status !== 'done').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0] || null;
+async function loadToday() { today = pickCurrent(await dbAll('walks')); }
+let todayLine = '';
 async function paintHud() {
   const walks = await dbAll('walks');
   const done = walks.filter(w => w.status === 'done');
-  const km = done.reduce((s, w) => s + w.distM * 2, 0) / 1000;
+  const km = done.reduce((s, w) => s + walkedOf(w), 0) / 1000;
+  const td = done.filter(w => w.date === todayStr());
+  todayLine = td.length ? `Today: ${td.length} walk${td.length === 1 ? '' : 's'}, ${fmtDist(td.reduce((s, w) => s + walkedOf(w), 0))}` : '';
+  const tl = $('#todayLine'); if (tl) tl.textContent = todayLine;
   $('#hudL').textContent = 'WALKS ' + pad(done.length);
   $('#hudR').textContent = km.toFixed(1) + ' KM';
 }
@@ -552,7 +577,7 @@ async function paintToday(fit) {
   if (!today) return;
   trail(tLayer, today.route, 4, today.approx ? '4 12' : '8 8');
   L.marker([today.start.lat, today.start.lng], { icon: mkPin('blue', 'S') }).addTo(tLayer);
-  L.marker([today.dest.lat, today.dest.lng], { icon: flagIcon }).addTo(tLayer);
+  L.marker([today.dest.lat, today.dest.lng], { icon: today.early ? mkPin('blue', 'E') : flagIcon }).addTo(tLayer);
   const media = (await dbAll('media')).filter(m => m.date === todayStr() && m.lat != null && !m.entryId);
   for (const m of media) L.marker([m.lat, m.lng], { icon: mkPin(m.type === 'photo' ? '' : 'voice', m.type === 'photo' ? 'P' : 'V'), interactive: false }).addTo(tLayer);
   if (fit) fitToday();
@@ -573,60 +598,83 @@ const captureRow = () => `
 function renderPanel() {
   const p = $('#panel');
   const rec = `<div id="recbar" class="${recState ? 'on' : ''}"><span class="dot"></span><span class="t" id="rect">${recState ? fmtDur(recState.secs) : '0:00'}</span><button id="recstop">STOP</button></div>`;
-  if (!today) {
+  if (!today && addrMode) {
+    renderAddrPanel(p);
+  } else if (!today) {
     const from = settings.startMode === 'address' && settings.address ? settings.address.label : 'My location';
     p.innerHTML = `
       <h1>Ready to wander?</h1>
-      <p class="sub">15 min out, 15 min back.</p>
+      <div class="wlen"><button class="step" id="wMinus" aria-label="Shorter walk" ${busy ? 'disabled' : ''}>-</button><label class="wmin"><input id="wMin" type="number" inputmode="numeric" pattern="[0-9]*" min="${WALK_MIN.lo}" max="${WALK_MIN.hi}" value="${totalMin()}" aria-label="Walk time in minutes" ${busy ? 'disabled' : ''}><span>MIN</span></label><button class="step" id="wPlus" aria-label="Longer walk" ${busy ? 'disabled' : ''}>+</button></div>
+      <p class="sub" id="wSub">${fmtMin(eachMin())} min out, ${fmtMin(eachMin())} min back.</p>
       <button class="go" id="goBtn" ${busy ? 'disabled' : ''}>${busy ? esc(busy) : 'GO!'}</button>
       ${busy ? '' : '<div class="start">PRESS START</div><br>'}
-      <button class="chip" id="fromChip">${ICON.pinS}<span>Start: ${esc(from)}</span></button>`;
+      <button class="chip" id="fromChip">${ICON.pinS}<span>Start: ${esc(from)}</span></button>
+      <div class="note" id="todayLine">${esc(todayLine)}</div>
+      <div><button class="chip tiny" id="addrChip" ${busy ? 'disabled' : ''}>ENTER AN ADDRESS</button></div>`;
     $('#goBtn').onclick = doGo;
+    const setWalkMin = async (v, commit = true) => {
+      v = clamp(Math.round(+v || 30), WALK_MIN.lo, WALK_MIN.hi); settings.walkMin = v;
+      const i = $('#wMin'); if (i && commit) i.value = v;
+      const sb = $('#wSub'); if (sb) sb.textContent = `${fmtMin(v / 2)} min out, ${fmtMin(v / 2)} min back.`;
+      if (commit) await saveSettings();
+    };
+    $('#wMinus').onclick = () => setWalkMin(totalMin() - WALK_MIN.step);
+    $('#wPlus').onclick = () => setWalkMin(totalMin() + WALK_MIN.step);
+    const wi = $('#wMin');
+    wi.onfocus = () => wi.select();
+    wi.oninput = () => { const v = +wi.value; if (v >= WALK_MIN.lo && v <= WALK_MIN.hi) setWalkMin(v, false); };
+    wi.onchange = () => setWalkMin(wi.value);
+    wi.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); wi.blur(); } };
     $('#fromChip').onclick = () => showTab('profile');
+    $('#addrChip').onclick = () => { addrMode = true; addrMsg = ''; renderPanel(); const i = $('#destIn'); if (i) i.focus(); };
   } else {
     const w = today, dist = fmtDist(w.distM);
     const approxNote = w.approx ? `<div class="note warn">Offline estimate. The path may not follow real streets.</div>` : '';
     if (w.status === 'planned') {
+      const note = w.custom ? (w.distM > 3000 ? 'Longer than a usual walk, so leave yourself time.' : 'Follow the pink trail to the flag.') : (w.fromBank ? 'Picked from your prepared spots.' : 'Follow the pink trail to the flag.');
       p.innerHTML = `
-        <h1>Quest found!</h1>
+        <h1>${w.custom ? 'Route ready!' : 'Quest found!'}</h1>
+        ${w.custom ? `<div class="dest">${esc(w.label.split(',')[0])}</div>` : ''}
         <div class="big">${dist}<small>about ${Math.round(w.durMin)} min each way</small></div>
-        <div class="note">${w.fromBank ? 'Picked from your prepared spots.' : 'Follow the pink trail to the flag.'}</div>
+        <div class="note">${note}</div>
         ${approxNote}
-        <div class="row"><button class="btn" id="startBtn" ${busy ? 'disabled' : ''}>START WALK</button></div>
-        <div class="row center"><button class="btn ghost small" id="rerollBtn" ${busy ? 'disabled' : ''}>${ICON.die} ${busy ? 'ROLLING' : 'RE-ROLL'}</button></div>
+        <div class="row"><button class="btn" id="startBtn" ${busy ? 'disabled' : ''}>${w.custom ? 'GO TO ADDRESS' : 'START WALK'}</button></div>
+        ${w.custom ? '' : `<div class="row center"><button class="btn ghost small" id="rerollBtn" ${busy ? 'disabled' : ''}>${ICON.die} ${busy ? 'ROLLING' : 'RE-ROLL'}</button></div>`}
         <div class="row center"><button class="chip" id="cancelBtn" ${busy ? 'disabled' : ''}>CANCEL</button></div>`;
       $('#startBtn').onclick = startWalk;
-      $('#rerollBtn').onclick = doGo;
+      if (!w.custom) $('#rerollBtn').onclick = doGo;
       $('#cancelBtn').onclick = cancelWalk;
     } else if (w.status === 'active') {
       p.innerHTML = `
         ${rec}
-        <h1>Walking out</h1>
+        <h1>${w.custom ? 'On the way' : 'Walking out'}</h1>
         <div class="big" id="togo">…</div>
         ${stripHtml(false)}
         ${captureRow()}
         <div class="row"><button class="btn" id="hereBtn">I’M HERE</button><a class="btn blue" target="_blank" rel="noopener" href="${mapsUrl(w.dest)}">${ICON.pinS} MAPS</a></div>
-        <div class="row center"><button class="chip" id="cancelBtn">CANCEL WALK</button></div>`;
+        <div class="row center"><button class="chip" id="endHereBtn">END HERE</button><button class="chip" id="cancelBtn">CANCEL WALK</button></div>`;
       $('#hereBtn').onclick = arrived;
+      $('#endHereBtn').onclick = finishWalk;
       $('#cancelBtn').onclick = cancelWalk;
       updateDistLine();
     } else if (w.status === 'arrived') {
       p.innerHTML = `
         ${rec}
-        <h1>Checkpoint!</h1>
-        <div class="note">You made it. Take it in, then head back, about ${Math.round(w.durMin)} min.</div>
+        <h1>${w.custom ? 'You’re here!' : 'Checkpoint!'}</h1>
+        <div class="note">${w.custom ? 'You made it. Head back whenever you’re ready, about' : 'You made it. Take it in, then head back, about'} ${Math.round(w.durMin)} min.</div>
         ${stripHtml(true)}
         ${captureRow()}
         <div class="row"><button class="btn" id="endBtn">END WALK</button><a class="btn blue" target="_blank" rel="noopener" href="${mapsUrl(w.start)}">${ICON.pinS} WAY BACK</a></div>
         <div class="row center"><button class="chip" id="cancelBtn">CANCEL WALK</button></div>`;
-      $('#endBtn').onclick = endWalk; $('#cancelBtn').onclick = cancelWalk; updateStrip();
+      $('#endBtn').onclick = finishWalk; $('#cancelBtn').onclick = cancelWalk; updateStrip();
     } else {
       const mins = w.startedAt && w.endedAt ? Math.max(1, Math.round((w.endedAt - w.startedAt) / 60000)) : Math.round(w.durMin * 2);
       p.innerHTML = `
-        <h1>Quest clear!</h1>
-        <p class="sub">${fmtDist(w.distM * 2)} round trip, ${mins} min. See you tomorrow.</p>
-        <div class="row"><button class="btn" id="jBtn">${ICON.bookB} SEE JOURNAL</button></div>`;
+        <h1>${w.early ? 'Walk saved!' : 'Quest clear!'}</h1>
+        <p class="sub">${fmtDist(walkedOf(w))} walked, ${mins} min.${w.early ? ' Ended early; your spot is on the map.' : ''}</p>
+        <div class="row"><button class="btn" id="newBtn">NEW WALK</button><button class="btn blue" id="jBtn">${ICON.bookB} JOURNAL</button></div>`;
       $('#jBtn').onclick = () => { journalDay = todayStr(); showTab('journal'); };
+      $('#newBtn').onclick = async () => { today = null; renderPanel(); await paintToday(false); setWalkerState(); if (pos) focusOn([pos.lat, pos.lng], 16); };
     }
   }
   const cb = $('#camBtn'); if (cb) cb.onclick = openCamera;
@@ -669,8 +717,83 @@ function updateStrip() {
   line.textContent = `${fmtDist(rem)} left · ${Math.max(1, Math.round(rem / metersPerMin()))} min ${back ? 'back' : 'to go'}`;
 }
 
+/* ---------- walk to an address ---------- */
+let addrMode = false, addrQ = '', addrRes = [], addrMsg = '', addrTimer = null, addrAbort = null, addrList = [];
+const sugHtml = list => list.map((x, i) => `<button class="sug ${x.recent ? 'rec' : ''}" data-i="${i}"><b>${esc(x.name)}</b>${x.sub ? `<small>${esc(x.sub)}</small>` : ''}</button>`).join('');
+function paintSugs() {
+  const box = $('#sugs'); if (!box) return;
+  addrList = addrRes.length ? addrRes : (addrQ.trim().length < 4 ? (settings.recent || []).map(r => ({ ...r, recent: true })) : []);
+  box.innerHTML = sugHtml(addrList);
+  const m = $('#addrMsg'); if (m) m.textContent = busy ? busy + '…' : (addrMsg || (addrList.some(x => x.recent) ? 'Recent places' : ''));
+}
+function renderAddrPanel(p) {
+  p.innerHTML = `
+    <h1>Where to?</h1>
+    <input id="destIn" class="destin" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type an address or place" value="${esc(addrQ)}" ${busy ? 'disabled' : ''}>
+    <div class="sugs" id="sugs"></div>
+    <div class="note" id="addrMsg"></div>
+    <div class="row center"><button class="chip" id="addrBack" ${busy ? 'disabled' : ''}>BACK</button></div>`;
+  paintSugs();
+  const inp = $('#destIn');
+  inp.oninput = () => {
+    addrQ = inp.value; clearTimeout(addrTimer); if (addrAbort) addrAbort.abort();
+    if (addrQ.trim().length < 4) { addrRes = []; addrMsg = ''; paintSugs(); return; }
+    addrMsg = 'Searching…'; paintSugs(); addrTimer = setTimeout(() => searchAddr(addrQ.trim()), 700);
+  };
+  inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(addrTimer); if (addrQ.trim().length >= 3) searchAddr(addrQ.trim()); inp.blur(); } };
+  $('#sugs').onclick = e => { const b = e.target.closest('[data-i]'); if (b && addrList[+b.dataset.i]) pickDest(addrList[+b.dataset.i]); };
+  $('#addrBack').onclick = () => { addrMode = false; addrQ = ''; addrRes = []; addrMsg = ''; if (addrAbort) addrAbort.abort(); clearTimeout(addrTimer); renderPanel(); };
+}
+async function searchAddr(q) {
+  if (!navigator.onLine) { addrRes = []; addrMsg = 'Needs internet to look up a new address. Recent places still work.'; paintSugs(); return; }
+  if (addrAbort) addrAbort.abort();
+  const ac = addrAbort = new AbortController();
+  const c = pos || (settings.address && settings.startMode === 'address' ? settings.address : null);
+  const vb = c ? `&viewbox=${c.lng - 0.5},${c.lat + 0.5},${c.lng + 0.5},${c.lat - 0.5}` : '';
+  try {
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&dedupe=1&q=' + encodeURIComponent(q) + vb, { signal: ac.signal });
+    const j = await r.json();
+    if (q !== addrQ.trim()) return;
+    addrRes = j.map(x => {
+      const a = x.address || {}, road = a.road || a.pedestrian || a.footway || a.path;
+      const name = x.name || (a.house_number && road ? a.house_number + ' ' + road : (road || x.display_name.split(',')[0]));
+      const sub = [a.suburb || a.neighbourhood, a.city || a.town || a.village || a.municipality, a.state].filter(Boolean).join(', ');
+      return { lat: +x.lat, lng: +x.lon, name, sub };
+    });
+    addrMsg = addrRes.length ? '' : 'No matches. Try adding the city.';
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    addrRes = []; addrMsg = 'Lookup failed. Check your connection.';
+  }
+  paintSugs();
+}
+async function pickDest(it) {
+  if (busy || (today && today.status !== 'planned')) return;
+  busy = 'FINDING THE ROUTE'; renderPanel();
+  try {
+    const start = await getStart();
+    let res = null;
+    if (navigator.onLine) {
+      try { const r = await route(start, it); res = { start, dest: r.snapped, route: r.coords, distM: r.dist, durMin: r.dist / metersPerMin(), approx: false }; }
+      catch (e) { console.warn('routing to address failed', e); }
+    }
+    if (!res) { const d = hav(start, it) * 1.3; res = { start, dest: { lat: it.lat, lng: it.lng }, route: [[start.lat, start.lng], [it.lat, it.lng]], distM: d, durMin: d / metersPerMin(), approx: true }; }
+    if (res.distM > 25000) { busy = false; renderPanel(); toast('That’s too far to walk. Pick somewhere closer.', 4500); return; }
+    const label = it.sub ? it.name + ', ' + it.sub : it.name;
+    settings.recent = [{ name: it.name, sub: it.sub, lat: it.lat, lng: it.lng }, ...(settings.recent || []).filter(r => hav(r, it) > 30)].slice(0, 5);
+    await saveSettings();
+    today = { id: newWalkId(), createdAt: Date.now(), date: todayStr(), status: 'planned', startedAt: null, arrivedAt: null, endedAt: null, ...res, custom: true, label };
+    await dbPut('walks', today);
+    addrMode = false; addrQ = ''; addrRes = []; addrMsg = '';
+    busy = false; renderPanel(); await paintToday(true);
+  } catch (e) {
+    busy = false; renderPanel(); toast(e.message || 'Something went wrong. Try again.', 4500);
+  }
+}
+const newWalkId = () => 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 async function doGo() {
   if (busy || (today && today.status !== 'planned')) return;
+  const wi = $('#wMin'); if (wi && +wi.value) settings.walkMin = clamp(Math.round(+wi.value), WALK_MIN.lo, WALK_MIN.hi);
   busy = 'FINDING YOUR SPOT'; renderPanel();
   try {
     const start = await getStart();
@@ -682,7 +805,7 @@ async function doGo() {
     }
     if (!res) res = await fromBank(start);
     if (!res) res = straightLine(start);
-    today = { id: todayStr(), date: todayStr(), status: 'planned', startedAt: null, arrivedAt: null, endedAt: null, ...res };
+    today = { id: newWalkId(), createdAt: Date.now(), date: todayStr(), status: 'planned', startedAt: null, arrivedAt: null, endedAt: null, ...res };
     await dbPut('walks', today);
     busy = false; renderPanel(); await paintToday(true);
   } catch (e) {
@@ -705,7 +828,32 @@ async function cancelWalk() {
   renderPanel(); await paintToday(false); paintHud(); setWalkerState();
   toast('Walk cancelled.');
 }
-async function endWalk() { await setStatus('done', 'endedAt'); setWalkerState(); toast('Walk saved to your journal.'); }
+// End the walk and log what was really walked: the spot she is at, and the distance covered along the route.
+async function finishWalk() {
+  const w = today; if (!w || (w.status !== 'active' && w.status !== 'arrived')) return;
+  const early = w.status === 'active';
+  if (early && !confirm('End the walk here? This spot is saved to your journal and map.')) return;
+  const now = Date.now(), rp = pos ? routeProgress(pos) : null, onRoute = !!rp && rp.off <= 250;
+  const maxM = early ? w.distM : w.distM * 2;
+  let walked;
+  if (early) walked = onRoute ? rp.along / rp.total * w.distM : pos ? Math.min(w.distM, hav(w.start, pos) * 1.25) : Math.min(maxM, (now - (w.startedAt || now)) / 60000 * metersPerMin());
+  else walked = w.distM + (onRoute ? (1 - rp.along / rp.total) * w.distM : pos ? Math.min(w.distM, hav(pos, w.dest) * 1.25) : Math.min(w.distM, (now - (w.arrivedAt || now)) / 60000 * metersPerMin()));
+  w.walkedM = Math.round(Math.min(walked, maxM));
+  w.endPos = pos ? { lat: pos.lat, lng: pos.lng } : null;
+  if (early) {
+    w.early = true;
+    if (pos) {   // document the trip as ending where she is, not at the planned flag
+      let k = 0, bd = Infinity;
+      w.route.forEach((c, i) => { const d = hav({ lat: c[0], lng: c[1] }, pos); if (d < bd) { bd = d; k = i; } });
+      w.planned = { dest: w.dest, distM: w.distM, route: w.route };
+      w.route = [...w.route.slice(0, k + 1), [pos.lat, pos.lng]];
+      w.dest = { lat: pos.lat, lng: pos.lng }; w.distM = w.walkedM;
+    }
+  }
+  w.status = 'done'; w.endedAt = now;
+  await dbPut('walks', w); renderPanel(); await paintToday(false); paintHud(); setWalkerState();
+  toast(early ? 'Walk ended here and saved.' : 'Walk saved to your journal.');
+}
 
 /* ---------- photos ---------- */
 function openCamera() {
@@ -863,13 +1011,16 @@ async function renderJournal() {
     return;
   }
   for (const d of dates) {
-    const w = walks.find(x => x.date === d);
+    const dw = walks.filter(x => x.date === d && x.status === 'done').sort((a, b) => (a.startedAt || 0) - (b.startedAt || 0));
     const ms = media.filter(m => m.date === d && !m.entryId).sort((a, b) => a.ts - b.ts);
     const es = entries.filter(e => e.date === d);
     // one timeline per day, ordered by the time on each item (entries use the time she set)
     const seq = [...es.map(e => ({ ts: e.ts, e })), ...pairUp(ms).map(x => ({ ts: x.m.ts, ...x }))].sort((a, b) => a.ts - b.ts);
     const dt = new Date(d + 'T12:00:00');
-    const stats = w ? fmtDist(w.distM * 2) + (w.startedAt && w.endedAt ? ' · ' + Math.max(1, Math.round((w.endedAt - w.startedAt) / 60000)) + ' min' : '') : `${seq.length} item${seq.length === 1 ? '' : 's'}`;
+    const w1 = dw[0], one = dw.length === 1;
+    const stats = dw.length ? (one
+      ? (w1.custom && w1.label ? w1.label.split(',')[0] + ' · ' : '') + fmtDist(walkedOf(w1)) + (w1.startedAt && w1.endedAt ? ' · ' + Math.max(1, Math.round((w1.endedAt - w1.startedAt) / 60000)) + ' min' : '') + (w1.early ? ' · ended early' : '')
+      : `${dw.length} walks · ${fmtDist(dw.reduce((t, x) => t + walkedOf(x), 0))}`) : `${seq.length} item${seq.length === 1 ? '' : 's'}`;
     const card = document.createElement('div'); card.className = 'day box' + (hi === d ? ' sel' : '');
     card.innerHTML = `<button class="dayhead" data-day="${d}" aria-label="Show this day on the map"><div><h3>${esc(dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase())}</h3><span>${esc(stats)}</span></div>${ICON.pinS}</button>`;
     let group = null;
@@ -1070,7 +1221,7 @@ async function paintMap() {
   const [walks, media, entries] = await Promise.all([dbAll('walks'), dbAll('media'), dbAll('entries')]);
   if (my !== bSeq) return;
   bUrls.forEach(u => URL.revokeObjectURL(u)); bUrls = [];
-  const f = mapFilter, walkDates = walks.map(w => w.date).sort().reverse();
+  const f = mapFilter, walkDates = [...new Set(walks.map(w => w.date))].sort().reverse();
   if (f.mode === 'walk' && (!f.day || (!walkDates.includes(f.day) && walkDates.length && !media.some(m => m.date === f.day)))) f.day = walkDates[0] || null;
   if (f.mode === 'range') { f.from = f.from || f.to || todayStr(); f.to = f.to || f.from; }
   const lo = f.mode === 'range' ? (f.from <= f.to ? f.from : f.to) : null, hi = f.mode === 'range' ? (f.from <= f.to ? f.to : f.from) : null;
@@ -1083,7 +1234,7 @@ async function paintMap() {
     trail(bLayer, w.route, f.mode === 'all' ? 3 : 4, '8 8');
     if (f.mode !== 'all') {
       L.marker([w.start.lat, w.start.lng], { icon: mkPin('blue', 'S'), interactive: false }).addTo(bLayer);
-      L.marker([w.dest.lat, w.dest.lng], { icon: flagIcon, interactive: false }).addTo(bLayer);
+      L.marker([w.dest.lat, w.dest.lng], { icon: w.early ? mkPin('blue', 'E') : flagIcon, interactive: false }).addTo(bLayer);
     }
     pts.push(...w.route);
   }
@@ -1391,7 +1542,7 @@ async function renderProfile() {
       <div class="field"><input id="addr" type="text" placeholder="e.g. 100 Queen St W" value="${esc(settings.address ? settings.address.query : '')}"><button class="btn small" id="addrGo">SET</button></div>
       <p id="addrNote">${settings.address ? 'Saved: ' + esc(settings.address.label) : 'Needs internet the first time. After that the address is remembered offline.'}</p>
     </div>
-    <div class="card box"><h3>WALKING PACE</h3><p>Turns distance into minutes. Fifteen minutes each way stays fixed.</p>
+    <div class="card box"><h3>WALKING PACE</h3><p>Turns distance into minutes. Set the walk time on the GO! screen.</p>
       <div class="stepper"><button id="paceM" aria-label="Slower">-</button><b id="paceV">${settings.pace.toFixed(1)} KM/H</b><button id="paceP" aria-label="Faster">+</button></div>
     </div>
     <div class="card box"><h3>PLAY OFFLINE</h3>
@@ -1474,13 +1625,13 @@ async function prepBank() {
   prepping = true; $('#prepBank').disabled = true;
   try {
     const start = await getStart();
-    const have = (await dbAll('bank')).filter(b => hav(b.start, start) < 600 && Math.abs((b.pace || settings.pace) - settings.pace) <= 1).length;
+    const have = (await dbAll('bank')).filter(b => hav(b.start, start) < 600 && Math.abs((b.pace || settings.pace) - settings.pace) <= 1 && (b.walkMin || 30) === totalMin()).length;
     const need = Math.max(0, 14 - have); let made = 0;
     for (let k = 0; k < need; k++) {
       setProg(`Preparing spots… ${made} / ${need}`, made / need);
       try {
         const r = await genLive(start, { bearing: (k * 360 / need + Math.random() * 20) % 360, tries: 2 });
-        await dbPut('bank', { start, dest: r.dest, route: r.route, distM: r.distM, pace: settings.pace, created: Date.now() }); made++;
+        await dbPut('bank', { start, dest: r.dest, route: r.route, distM: r.distM, pace: settings.pace, walkMin: totalMin(), created: Date.now() }); made++;
       } catch (e) { console.warn(e); }
       await sleep(400);
     }
@@ -1564,7 +1715,8 @@ async function boot() {
   document.addEventListener('visibilitychange', async () => {
     if (document.hidden) return;
     startWatch();
-    const t = await dbGet('walks', todayStr());
+    const t = pickCurrent(await dbAll('walks'));
+    if (today && today.status === 'done' && !t) return;
     if ((t && t.id) !== (today && today.id)) { today = t || null; renderPanel(); paintToday(true); paintHud(); }
   });
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
