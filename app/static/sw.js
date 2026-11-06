@@ -1,5 +1,5 @@
 // Wander service worker: makes the app and any map tiles she has seen work offline.
-const V = 'wander-app-v8';
+const V = 'wander-app-v9';
 const TILES = 'wander-tiles';
 const ASSETS = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 

@@ -604,10 +604,10 @@ function renderPanel() {
       <div class="wlen"><button class="step" id="wMinus" aria-label="Shorter walk" ${busy ? 'disabled' : ''}>-</button><label class="wmin"><input id="wMin" type="number" inputmode="numeric" pattern="[0-9]*" min="${WALK_MIN.lo}" max="${WALK_MIN.hi}" value="${totalMin()}" aria-label="Walk time in minutes" ${busy ? 'disabled' : ''}><span>MIN</span></label><button class="step" id="wPlus" aria-label="Longer walk" ${busy ? 'disabled' : ''}>+</button></div>
       <p class="sub" id="wSub">${fmtMin(eachMin())} min out, ${fmtMin(eachMin())} min back.</p>
       <button class="go" id="goBtn" ${busy ? 'disabled' : ''}>${busy ? esc(busy) : 'GO!'}</button>
-      ${busy ? '' : '<div class="start">PRESS START</div><br>'}
+      ${busy ? '' : '<div class="start">PRESS GO</div><br>'}
       <button class="chip" id="fromChip">${ICON.pinS}<span>Start: ${esc(from)}</span></button>
       <div class="note" id="todayLine">${esc(todayLine)}</div>
-      <div><button class="chip tiny" id="addrChip" ${busy ? 'disabled' : ''}>ENTER AN ADDRESS</button></div>`;
+      <div><button class="chip tiny" id="addrChip" ${busy ? 'disabled' : ''}>CHOOSE A DESTINATION</button></div>`;
     $('#goBtn').onclick = doGo;
     const setWalkMin = async (v, commit = true) => {
       v = clamp(Math.round(+v || 30), WALK_MIN.lo, WALK_MIN.hi); settings.walkMin = v;
