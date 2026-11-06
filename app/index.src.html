@@ -64,6 +64,7 @@ svg.i{display:block;flex:none;color:inherit;image-rendering:pixelated}
 .row>*{flex:1;min-width:0}
 .row.center{justify-content:center}
 .row.center>*{flex:0 0 50%}
+.row.center.wide>*{flex:0 0 72%}
 .row.center>.chip{justify-content:center;margin-bottom:0}
 
 /* maps */
@@ -584,11 +585,6 @@ async function paintToday(fit) {
 }
 
 /* ---------- Today panel ---------- */
-function mapsUrl(p) {
-  const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  return ios ? `https://maps.apple.com/?daddr=${p.lat},${p.lng}&dirflg=w`
-             : `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=walking`;
-}
 const captureRow = () => `
   <div class="capture">
     <button class="round" id="camBtn"><b>${ICON.cam}</b>Photo</button>
@@ -651,7 +647,7 @@ function renderPanel() {
         <div class="big" id="togo">…</div>
         ${stripHtml(false)}
         ${captureRow()}
-        <div class="row"><button class="btn" id="hereBtn">I’M HERE</button><a class="btn blue" target="_blank" rel="noopener" href="${mapsUrl(w.dest)}">${ICON.pinS} MAPS</a></div>
+        <div class="row center wide"><button class="btn" id="hereBtn">I’M HERE</button></div>
         <div class="row center"><button class="chip" id="endHereBtn">END HERE</button><button class="chip" id="cancelBtn">CANCEL WALK</button></div>`;
       $('#hereBtn').onclick = arrived;
       $('#endHereBtn').onclick = finishWalk;
@@ -664,7 +660,7 @@ function renderPanel() {
         <div class="note">${w.custom ? 'You made it. Head back whenever you’re ready, about' : 'You made it. Take it in, then head back, about'} ${Math.round(w.durMin)} min.</div>
         ${stripHtml(true)}
         ${captureRow()}
-        <div class="row"><button class="btn" id="endBtn">END WALK</button><a class="btn blue" target="_blank" rel="noopener" href="${mapsUrl(w.start)}">${ICON.pinS} WAY BACK</a></div>
+        <div class="row center wide"><button class="btn" id="endBtn">END WALK</button></div>
         <div class="row center"><button class="chip" id="cancelBtn">CANCEL WALK</button></div>`;
       $('#endBtn').onclick = finishWalk; $('#cancelBtn').onclick = cancelWalk; updateStrip();
     } else {
@@ -817,7 +813,23 @@ async function setStatus(status, field) {
   await dbPut('walks', today); renderPanel(); await paintToday(false); paintHud();
 }
 async function startWalk() { followMe = true; await setStatus('active', 'startedAt'); startWatch(); if (pos) focusOn([pos.lat, pos.lng], 16); setWalkerState(); }
-async function arrived() { await setStatus('arrived', 'arrivedAt'); setWalkerState(); toast('Checkpoint reached!'); }
+const freshPos = () => (pos && Date.now() - pos.ts < 120000) ? pos : null;
+// Cut a walk short at spot p: the route ends there, the flag moves there, and only m metres count as the way out.
+function cutRouteAt(w, p, m) {
+  let k = 0, bd = Infinity;
+  w.route.forEach((c, i) => { const d = hav({ lat: c[0], lng: c[1] }, p); if (d < bd) { bd = d; k = i; } });
+  if (!w.planned) w.planned = { dest: w.dest, distM: w.distM, route: w.route };
+  w.route = [...w.route.slice(0, k + 1), [p.lat, p.lng]];
+  w.dest = { lat: p.lat, lng: p.lng }; w.distM = Math.max(1, Math.round(m)); w.durMin = w.distM / metersPerMin();
+}
+// "I'm here" counts the spot she is actually at, not the planned flag.
+async function arrived() {
+  const w = today; if (!w || w.status !== 'active') return;
+  const p = freshPos(), now = Date.now(), rp = p ? routeProgress(p) : null, onRoute = !!rp && rp.off <= 250;
+  const outM = p ? (onRoute ? rp.along / rp.total * w.distM : Math.min(w.distM, hav(w.start, p) * 1.25)) : Math.min(w.distM, (now - (w.startedAt || now)) / 60000 * metersPerMin());
+  if (p && outM < w.distM - 30) cutRouteAt(w, p, outM);
+  await setStatus('arrived', 'arrivedAt'); setWalkerState(); toast('Checkpoint reached!');
+}
 async function cancelWalk() {
   if (!today || busy) return;
   if (today.status !== 'planned' && !confirm('Cancel this walk? The route is removed. Photos and voice notes you took today stay in your journal.')) return;
@@ -840,16 +852,7 @@ async function finishWalk() {
   else walked = w.distM + (onRoute ? (1 - rp.along / rp.total) * w.distM : pos ? Math.min(w.distM, hav(pos, w.dest) * 1.25) : Math.min(w.distM, (now - (w.arrivedAt || now)) / 60000 * metersPerMin()));
   w.walkedM = Math.round(Math.min(walked, maxM));
   w.endPos = pos ? { lat: pos.lat, lng: pos.lng } : null;
-  if (early) {
-    w.early = true;
-    if (pos) {   // document the trip as ending where she is, not at the planned flag
-      let k = 0, bd = Infinity;
-      w.route.forEach((c, i) => { const d = hav({ lat: c[0], lng: c[1] }, pos); if (d < bd) { bd = d; k = i; } });
-      w.planned = { dest: w.dest, distM: w.distM, route: w.route };
-      w.route = [...w.route.slice(0, k + 1), [pos.lat, pos.lng]];
-      w.dest = { lat: pos.lat, lng: pos.lng }; w.distM = w.walkedM;
-    }
-  }
+  if (early) { w.early = true; if (pos) cutRouteAt(w, pos, w.walkedM); }   // the trip ends where she is, not at the planned flag
   w.status = 'done'; w.endedAt = now;
   await dbPut('walks', w); renderPanel(); await paintToday(false); paintHud(); setWalkerState();
   toast(early ? 'Walk ended here and saved.' : 'Walk saved to your journal.');

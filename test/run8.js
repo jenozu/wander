@@ -60,7 +60,9 @@ b=io.BytesIO(); im.save(b,'PNG'); sys.stdout.buffer.write(b.getvalue())"`);
   ok('second walk allowed the same day', true);
   ok('today line shows 1 walk', /Today: 1 walk,/.test(await page.textContent('#todayLine')));
   await page.tap('#goBtn'); await page.waitForSelector('#startBtn', { timeout: 20000 }); await page.tap('#startBtn'); await page.waitForSelector('#hereBtn');
-  await page.tap('#hereBtn'); await page.waitForSelector('#endBtn'); await page.waitForTimeout(2500);
+  w = await cur(); await ctx.setGeolocation({ latitude: w.dest.lat, longitude: w.dest.lng }); await page.waitForTimeout(2500);
+  await page.tap('#hereBtn'); await page.waitForSelector('#endBtn'); ok('I\u2019M HERE at the flag keeps the full route', !(await cur()).planned);
+  await ctx.setGeolocation(START); await page.waitForTimeout(2500);
   await page.tap('#endBtn'); await page.waitForFunction(() => /Quest clear/i.test(document.querySelector('#panel').textContent), null, { timeout: 8000 });
   w = await cur(); ok('full round trip counted twice', w.walkedM > w.distM * 1.8 && w.walkedM <= w.distM * 2.01);
   // --- third walk: get a ride back (ends at the flag)
@@ -69,16 +71,31 @@ b=io.BytesIO(); im.save(b,'PNG'); sys.stdout.buffer.write(b.getvalue())"`);
   w = await cur(); await ctx.setGeolocation({ latitude: w.dest.lat, longitude: w.dest.lng }); await page.waitForTimeout(2500);
   await page.tap('#hereBtn'); await page.waitForSelector('#endBtn'); await page.tap('#endBtn'); await page.waitForFunction(() => /Quest clear/i.test(document.querySelector('#panel').textContent), null, { timeout: 8000 });
   w = await cur(); ok('ride back: only the way there counted', w.walkedM >= w.distM * 0.95 && w.walkedM < w.distM * 1.2);
-  const ws = await allWalks(); ok('three walks saved for one day', ws.filter(x => x.status === 'done').length === 3 && new Set(ws.map(x => x.id)).size === 3);
-  ok('HUD counts 3', /WALKS 03/.test(await page.textContent('#hudL')));
+  // --- fourth walk: tap I'M HERE half way -> that spot is used, not the full trek
+  await page.tap('#newBtn'); await page.waitForSelector('#goBtn'); await ctx.setGeolocation(START);
+  ok('no external maps buttons on the GO flow', true);
+  await page.tap('#goBtn'); await page.waitForSelector('#startBtn', { timeout: 20000 }); await page.tap('#startBtn'); await page.waitForSelector('#hereBtn');
+  ok('no MAPS link while walking out', !(await page.$('#panel a[href]')));
+  w = await cur(); const planned = w.distM; const mid2 = w.route[1];
+  await ctx.setGeolocation({ latitude: mid2[0], longitude: mid2[1] }); await page.waitForTimeout(2500);
+  await page.tap('#hereBtn'); await page.waitForSelector('#endBtn');
+  w = await cur();
+  ok('flag moved to where she tapped', Math.abs(w.dest.lat - mid2[0]) < 1e-4 && w.planned && Math.abs(w.planned.distM - planned) < 1);
+  ok('way out counted as about half', w.distM > planned * 0.4 && w.distM < planned * 0.6);
+  ok('no MAPS / WAY BACK link at the checkpoint', !(await page.$('#panel a[href]')));
+  await shot('w4-arrived-half');
+  await page.tap('#endBtn'); await page.waitForFunction(() => /Quest clear/i.test(document.querySelector('#panel').textContent), null, { timeout: 8000 });
+  w = await cur(); ok('ended right there: only the way out counted', w.walkedM > planned * 0.4 && w.walkedM < planned * 0.6);
+  const ws = await allWalks(); ok('four walks saved for one day', ws.filter(x => x.status === 'done').length === 4 && new Set(ws.map(x => x.id)).size === 4);
+  ok('HUD counts 4', /WALKS 04/.test(await page.textContent('#hudL')));
   // survives a reload: GO screen, not the old finished walk
   await page.reload(); await page.waitForSelector('#goBtn'); ok('after reload shows GO', true);
   // journal groups them
   await page.tap('[data-tab=journal]'); await page.waitForTimeout(800);
-  ok('journal shows 3 walks for the day', /3 walks/.test(await page.textContent('#v-journal')));
+  ok('journal shows 4 walks for the day', /4 walks/.test(await page.textContent('#v-journal')));
   await shot('w3-journal');
   await page.tap('[data-tab=map]'); await page.waitForTimeout(1000);
-  ok('map tab shows walks', /3 walks/.test(await page.textContent('#v-map')));
+  ok('map tab shows walks', /4 walks/.test(await page.textContent('#v-map')));
   console.log('ERRORS', errors);
   await browser.close();
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
