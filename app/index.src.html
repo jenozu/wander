@@ -65,6 +65,7 @@ svg.i{display:block;flex:none;color:inherit;image-rendering:pixelated}
 .row.center{justify-content:center}
 .row.center>*{flex:0 0 50%}
 .row.center.wide>*{flex:0 0 72%}
+.wrow{display:flex;align-items:center;gap:8px;margin:10px 0 0;flex-wrap:wrap}.wrow .wtxt{flex:1 1 100%;display:flex;flex-direction:column}.wrow .wtxt span{font-size:.8em;opacity:.7}.wrow .btn{flex:0 0 auto}
 .row.center>.chip{justify-content:center;margin-bottom:0}
 
 /* maps */
@@ -995,6 +996,24 @@ function mediaItem(m, voice) {
   if (caps) it.innerHTML += `<div class="cap">${esc(caps)}</div>`;
   return it;
 }
+async function removeWalk(id) {
+  const w = (await dbAll('walks')).find(x => x.id === id); if (!w) return;
+  if (!confirm('Remove this walk? Its route and distance are deleted. Photos, voice notes and entries stay in your journal.')) return;
+  for (const m of (await dbAll('media')).filter(m => m.walkId === id)) { m.walkId = null; await dbPut('media', m); }
+  await dbDel('walks', id);
+  if (today && today.id === id) { today = null; renderPanel(); await paintToday(false); setWalkerState(); }
+  paintHud(); await renderJournal(); toast('Walk removed.');
+}
+async function renameWalk(id) {
+  const w = (await dbAll('walks')).find(x => x.id === id); if (!w) return;
+  const cur = w.title || (w.custom && w.label ? w.label.split(',')[0] : '');
+  const v = prompt('Name this walk (leave empty for the default):', cur);
+  if (v === null) return;
+  w.title = v.trim().slice(0, 40); if (!w.title) delete w.title;
+  await dbPut('walks', w);
+  if (today && today.id === id) today.title = w.title;
+  await renderJournal();
+}
 async function renderJournal() {
   jUrls.forEach(u => URL.revokeObjectURL(u)); jUrls = [];
   const [walks, media, entries] = await Promise.all([dbAll('walks'), dbAll('media'), dbAll('entries')]);
@@ -1005,6 +1024,8 @@ async function renderJournal() {
   box.onclick = e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.id === 'addEntry') { openEntryForm(null).catch(fail('Entry')); return; }
+    if (b.dataset.wdel) { removeWalk(b.dataset.wdel).catch(fail('Remove walk')); return; }
+    if (b.dataset.wname) { renameWalk(b.dataset.wname).catch(fail('Rename walk')); return; }
     if (b.dataset.entry) { openEntryForm(entById.get(b.dataset.entry)).catch(fail('Entry')); return; }
     if (b.dataset.day) { const d = b.dataset.day; mapFilter = walks.some(w => w.date === d) ? { mode: 'walk', day: d } : { mode: 'range', from: d, to: d }; showTab('map'); return; }
     if (b.dataset.id) openViewer(byId.get(b.dataset.id));
@@ -1026,6 +1047,13 @@ async function renderJournal() {
       : `${dw.length} walks · ${fmtDist(dw.reduce((t, x) => t + walkedOf(x), 0))}`) : `${seq.length} item${seq.length === 1 ? '' : 's'}`;
     const card = document.createElement('div'); card.className = 'day box' + (hi === d ? ' sel' : '');
     card.innerHTML = `<button class="dayhead" data-day="${d}" aria-label="Show this day on the map"><div><h3>${esc(dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase())}</h3><span>${esc(stats)}</span></div>${ICON.pinS}</button>`;
+    dw.forEach((x, i) => {
+      const nm = x.title || (x.custom && x.label ? x.label.split(',')[0] : 'Walk ' + (i + 1));
+      const tm = x.startedAt ? new Date(x.startedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) + ' · ' : '';
+      const r = document.createElement('div'); r.className = 'wrow';
+      r.innerHTML = `<div class="wtxt"><b>${esc(nm)}</b><span>${esc(tm + fmtDist(walkedOf(x)) + (x.early ? ' · ended early' : ''))}</span></div><button class="btn small blue" data-wname="${x.id}">RENAME</button><button class="btn small ghost" data-wdel="${x.id}">REMOVE</button>`;
+      card.appendChild(r);
+    });
     let group = null;
     for (const x of seq) {
       if (x.e) {
